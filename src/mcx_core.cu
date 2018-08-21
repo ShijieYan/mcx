@@ -1152,9 +1152,11 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 	          float dist0,dist1;
 	          dist0=(float)((mediaidold & DIST_MASK)>>16);
 	          dist1=(float)((mediaid & DIST_MASK)>>16);
-		  //printf("Hello from block %d, thread %d, len is %f, oldidx is %d, dist0 is %f, newidx is %d, dist1 is %f\n", blockIdx.x, threadIdx.x, len, idx1dold, dist0, idx1d, dist1);
-		  if(len<dist0 || len<dist1){
-		      //printf("len is %f, p is %f %f %f, p1 is %f %f %f\n",len,p.x,p.y,p.z, p1.x,p1.y,p1.z);
+		  //if(blockIdx.x==1 && threadIdx.x==1)
+		      //printf("Hello from block %d, thread %d, len is %f, dist0 is %f, dist1 is %f\n", blockIdx.x, threadIdx.x, slen, dist0, dist1);
+		  if(f.pscat<dist0 || f.pscat<dist1){
+		      //if(blockIdx.x==1 && threadIdx.x==1)
+		          //printf("Hello from block %d, thread %d, len is %f, dist0 is %f, dist1 is %f\n", blockIdx.x, threadIdx.x, len, dist0, dist1);
 		      float ftold=f.t;
 		      f.t+=len*prop.n*gcfg->oneoverc0;
 		      if(gcfg->save2pt && f.t>=gcfg->twin0 && f.t<gcfg->twin1){
@@ -1177,11 +1179,12 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 			      idx1dold=(int(floorf(mid.z))*gcfg->dimlen.y+int(floorf(mid.y))*gcfg->dimlen.x+int(floorf(mid.x)));
 			      float oldval=atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], w0*totalloss);
 			      if(oldval>MAX_ACCUM){
-			          if(atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], -oldval)<0.f)
-				      atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], oldval);
+			         if(atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], -oldval)<0.f)
+			            atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], oldval);
 				  else
 				      atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z+gcfg->dimlen.w], oldval);
 			      }
+			      //field[idx1dold+tshift*gcfg->dimlen.z]+=w0*totalloss;
 			      w0*=segloss;
 			      mid=float3(mid.x+pvec.x,mid.y+pvec.y,mid.z+pvec.z); 
 			  }
@@ -1198,11 +1201,12 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 	  }
 	  }while(f.pscat<=0);
 
-	  //printf("hitgrid called, len is %f, p is %f %f %f, p1 is %f %f %f\n",len,p.x,p.y,p.z, p1.x,p1.y,p1.z);
+	  
+	  
 	  
 	  /** Advance photon 1 step to the next voxel */
 	  len=(gcfg->faststep) ? gcfg->minstep : hitgrid((float3*)&p,(float3*)v,&(htime.x),&rv.x,&flipdir); // propagate the photon to the first intersection to the grid
-
+	  
 	  /** convert photon movement length to unitless scattering length by multiplying with mus */
 	  slen=len*prop.mus*(v->nscat+1.f > gcfg->gscatter ? (1.f-prop.g) : 1.f); //unitless (minstep=grid, mus=1/grid)
 
