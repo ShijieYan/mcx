@@ -201,7 +201,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	    mcx_set_field(prhs[0],tmp,ifield,&cfg);
 	}
 	mcx_flush(&cfg);
-
+	//printf("dist(30,30,30) is %hhu\n",cfg.distmask[106169]);
+	
         /** Overwite the output flags using the number of output present */
 	cfg.issave2pt=(nlhs>=1);  /** save fluence rate to the 1st output if present */
 	cfg.issavedet=(nlhs>=2);  /** save detected photon data to the 2nd output if present */
@@ -497,6 +498,16 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
 	}
         printf("mcx.dim=[%d %d %d];\n",cfg->dim.x,cfg->dim.y,cfg->dim.z);
         printf("mcx.mediabyte=%d;\n",cfg->mediabyte);
+    }else if(strcmp(name,"distmask")==0){       /**< read distmask as uint8 */
+	dimtype dimxyz;
+	if(mxGetNumberOfDimensions(item)!=3){
+	    mexErrMsgTxt("the 'distmask' field must be a 3D array");
+	    }
+	arraydim=mxGetDimensions(item);
+	dimxyz=arraydim[0]*arraydim[1]*arraydim[2];
+	if(cfg->distmask) free(cfg->distmask);
+	cfg->distmask=(unsigned char *)malloc(dimxyz*sizeof(unsigned char));
+	memcpy(cfg->distmask,(unsigned char *)mxGetData(item),dimxyz*sizeof(unsigned char));
     }else if(strcmp(name,"detpos")==0){
         arraydim=mxGetDimensions(item);
 	if(arraydim[0]>0 && arraydim[1]!=4)
@@ -750,7 +761,7 @@ void mcx_validate_config(Config *cfg){
      if(cfg->maxgate>gates)
 	 cfg->maxgate=gates;
      if(cfg->sradius>0.f){
-     	cfg->crop0.x=MAX((int)(cfg->srcpos.x-cfg->sradius),0);
+     	cfg->crop0.x=MAX((int)(cfg->srcpos.x-cfg->sradius),0);           /*????*/
      	cfg->crop0.y=MAX((int)(cfg->srcpos.y-cfg->sradius),0);
      	cfg->crop0.z=MAX((int)(cfg->srcpos.z-cfg->sradius),0);
      	cfg->crop1.x=MIN((int)(cfg->srcpos.x+cfg->sradius),cfg->dim.x-1);
@@ -820,6 +831,7 @@ void mcx_validate_config(Config *cfg){
 	}
 	if(cfg->issavedet)
 		mcx_maskdet(cfg);
+	mcx_maskdist(cfg);
         if(cfg->seed==SEED_FROM_FILE){
             if(cfg->respin>1 || cfg->respin<0){
 	       cfg->respin=1;

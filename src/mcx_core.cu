@@ -981,6 +981,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
      if(idx>=gcfg->threadphoton*(blockDim.x * gridDim.x)+gcfg->oddphotons)
          return;
      MCXpos  p={0.f,0.f,0.f,-1.f};                      ///< Photon position state: {x,y,z}: coordinates in grid unit, w:packet weight
+     MCXpos  p1={0.f,0.f,0.f,-1.f};                     ///< Photon position state after
      MCXdir *v=(MCXdir*)(sharedmem+(threadIdx.x<<2));   ///< Photon direction state: {x,y,z}: unitary direction vector in grid unit, nscat:total scat event
      MCXtime f={0.f,0.f,0.f,-1.f};                      ///< Photon parameter state: pscat: remaining scattering probability,t: photon elapse time, tnext: next accumulation time, ndone: completed photons
      float  energyloss=genergy[idx<<1];
@@ -1058,6 +1059,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 	      2 - a 0-2pi uniformly random arimuthal angle
 	      3 - a 0-pi random zenith angle based on the Henyey-Greenstein Phase Function
            */
+       do{
 	  if(f.pscat<=0.f) {  ///< if this photon has finished his current scattering path, calculate next scat length & angles
                if(moves++>gcfg->reseedlimit){
                   moves=0;
@@ -1136,9 +1138,71 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
           n1=prop.n;
 	  *((float4*)(&prop))=gproperty[mediaid & MED_MASK];
 	  
+	  len=f.pscat/(prop.mus*(v->nscat+1.f > gcfg->gscatter ? (1.f-prop.g) : 1.f));
+	  *((float3*)(&p1)) = float3(p.x+len*v->x,p.y+len*v->y,p.z+len*v->z);
+	  
+	  if(p1.x<0||p1.y<0||p1.z<0||p1.x>=gcfg->maxidx.x||p1.y>=gcfg->maxidx.y||p1.z>=gcfg->maxidx.z){
+	  }else{
+	      idx1dold=idx1d;
+	      mediaidold=mediaid;
+	      idx1d=(int(floorf(p1.z))*gcfg->dimlen.y+int(floorf(p1.y))*gcfg->dimlen.x+int(floorf(p1.x)));
+	      mediaid=media[idx1d];
+	      if((mediaidold & MED_MASK) == (mediaid & MED_MASK)){ /**< same media */
+	          //printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
+	          float dist0,dist1;
+	          dist0=(float)((mediaidold & DIST_MASK)>>16);
+	          dist1=(float)((mediaid & DIST_MASK)>>16);
+		  //printf("Hello from block %d, thread %d, len is %f, oldidx is %d, dist0 is %f, newidx is %d, dist1 is %f\n", blockIdx.x, threadIdx.x, len, idx1dold, dist0, idx1d, dist1);
+		  if(len<dist0 || len<dist1){
+		      //printf("len is %f, p is %f %f %f, p1 is %f %f %f\n",len,p.x,p.y,p.z, p1.x,p1.y,p1.z);
+		      float ftold=f.t;
+		      f.t+=len*prop.n*gcfg->oneoverc0;
+		      if(gcfg->save2pt && f.t>=gcfg->twin0 && f.t<gcfg->twin1){
+		          //printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
+		          float totalloss=expf(-prop.mua*len);
+		          p.w*=totalloss;
+		          totalloss=1.f-totalloss;
+		          int tshift=(int)(floorf((f.t-gcfg->twin0)*gcfg->Rtstep));
+			  float weight=(prop.mua==0.f) ? 0.f : ((w0-p.w)/(prop.mua));
+			  int seg=int(floorf(len))+1;
+			  seg=(seg<<1);
+			  float dstep=len/float(seg);
+			  float segloss=expf(-prop.mua*dstep);
+			  float3 mid,pvec;
+			  pvec=float3(dstep*v->x,dstep*v->y,dstep*v->z);
+			  mid=float3(p.x+0.5f*pvec.x,p.y+0.5f*pvec.y,p.z+0.5f*pvec.z);
+			  totalloss=(totalloss==0.f)? 0.f : (1.f-segloss)/totalloss;
+			  w0=weight;
+			  for(int i=0;i<seg;i++){
+			      idx1dold=(int(floorf(mid.z))*gcfg->dimlen.y+int(floorf(mid.y))*gcfg->dimlen.x+int(floorf(mid.x)));
+			      float oldval=atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], w0*totalloss);
+			      if(oldval>MAX_ACCUM){
+			          if(atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], -oldval)<0.f)
+				      atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], oldval);
+				  else
+				      atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z+gcfg->dimlen.w], oldval);
+			      }
+			      w0*=segloss;
+			      mid=float3(mid.x+pvec.x,mid.y+pvec.y,mid.z+pvec.z); 
+			  }
+			  w0=p.w;
+			  *((float3*)(&p)) = *(float3*)(&p1);
+			  f.pscat=0.f;
+			  continue;
+		      }
+		      f.t=ftold;
+		  }
+	      }
+	      idx1d=idx1dold;
+	      mediaid=mediaidold;
+	  }
+	  }while(f.pscat<=0);
+
+	  //printf("hitgrid called, len is %f, p is %f %f %f, p1 is %f %f %f\n",len,p.x,p.y,p.z, p1.x,p1.y,p1.z);
+	  
 	  /** Advance photon 1 step to the next voxel */
 	  len=(gcfg->faststep) ? gcfg->minstep : hitgrid((float3*)&p,(float3*)v,&(htime.x),&rv.x,&flipdir); // propagate the photon to the first intersection to the grid
-	  
+
 	  /** convert photon movement length to unitless scattering length by multiplying with mus */
 	  slen=len*prop.mus*(v->nscat+1.f > gcfg->gscatter ? (1.f-prop.g) : 1.f); //unitless (minstep=grid, mus=1/grid)
 
@@ -1185,7 +1249,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 	  }else{
               /** otherwise, read the optical property index */
 	      mediaid=media[idx1d];
-	      isdet=mediaid & DET_MASK;  /** upper 16bit is the mask of the covered detector */
+	      isdet=mediaid & DET_MASK;  /** upper 8bit is the mask of the covered detector */
 	      mediaid &= MED_MASK;       /** lower 16bit is the medium index */
           }
           GPUDEBUG(("medium [%d]->[%d]\n",mediaidold,mediaid));

@@ -40,8 +40,9 @@
 #define MAX_PROP_AND_DETECTORS   4000              /**< maximum number of property + number of detectors */
 #define SEED_FROM_FILE      -999                   /**< special flag indicating to read seeds from an mch file for replay */
 
-#define DET_MASK           0xFFFF0000              /**< mask of the upper 16bit to get the detector ID */
+#define DET_MASK           0xFF000000              /**< mask of the upper 16bit to get the detector ID */
 #define MED_MASK           0x0000FFFF              /**< mask of the lower 16bit to get the medium index */
+#define DIST_MASK          0x00FF0000              /**< mask of the lower 8bit of the upper 16bit to get the distance */
 
 #define MCX_DEBUG_REC_LEN  6  /**<  number of floating points per position saved when -D M is used for trajectory */
 

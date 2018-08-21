@@ -154,6 +154,7 @@ typedef struct MCXConfig{
 	int gpuid;                    /**<the ID of the GPU to use, starting from 1, 0 for auto*/
 
 	unsigned int *vol;            /**<pointer to the volume*/
+	unsigned char *distmask;
 	char session[MAX_SESSION_LENGTH]; /**<session id, a string*/
 	char isrowmajor;             /**<1 for C-styled array in vol, 0 for matlab-styled array*/
 	char isreflect;              /**<1 for reflecting photons at boundary,0 for exiting*/
@@ -232,6 +233,7 @@ int  mcx_readarg(int argc, char *argv[], int id, void *output,const char *type);
 void mcx_printlog(Config *cfg, char *str);
 int  mcx_remap(char *opt);
 void mcx_maskdet(Config *cfg);
+void mcx_maskdist(Config *cfg);
 void mcx_dumpmask(Config *cfg);
 void mcx_version(Config *cfg);
 void mcx_convertrow2col(unsigned int **vol, uint3 *dim);
