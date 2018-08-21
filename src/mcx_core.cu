@@ -981,7 +981,6 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
      if(idx>=gcfg->threadphoton*(blockDim.x * gridDim.x)+gcfg->oddphotons)
          return;
      MCXpos  p={0.f,0.f,0.f,-1.f};                      ///< Photon position state: {x,y,z}: coordinates in grid unit, w:packet weight
-     MCXpos  p1={0.f,0.f,0.f,-1.f};                     ///< Photon position state after
      MCXdir *v=(MCXdir*)(sharedmem+(threadIdx.x<<2));   ///< Photon direction state: {x,y,z}: unitary direction vector in grid unit, nscat:total scat event
      MCXtime f={0.f,0.f,0.f,-1.f};                      ///< Photon parameter state: pscat: remaining scattering probability,t: photon elapse time, tnext: next accumulation time, ndone: completed photons
      float  energyloss=genergy[idx<<1];
@@ -1139,24 +1138,15 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 	  *((float4*)(&prop))=gproperty[mediaid & MED_MASK];
 	  
 	  len=f.pscat/(prop.mus*(v->nscat+1.f > gcfg->gscatter ? (1.f-prop.g) : 1.f));
-	  *((float3*)(&p1)) = float3(p.x+len*v->x,p.y+len*v->y,p.z+len*v->z);
+	  *((float3*)(&htime)) = float3(p.x+len*v->x,p.y+len*v->y,p.z+len*v->z);
 	  
-	  if(p1.x<0||p1.y<0||p1.z<0||p1.x>=gcfg->maxidx.x||p1.y>=gcfg->maxidx.y||p1.z>=gcfg->maxidx.z){
-	  }else{
+	  if(! (htime.x<0||htime.y<0||htime.z<0||htime.x>=gcfg->maxidx.x||htime.y>=gcfg->maxidx.y||htime.z>=gcfg->maxidx.z)){
 	      idx1dold=idx1d;
 	      mediaidold=mediaid;
-	      idx1d=(int(floorf(p1.z))*gcfg->dimlen.y+int(floorf(p1.y))*gcfg->dimlen.x+int(floorf(p1.x)));
+	      idx1d=(int(floorf(htime.z))*gcfg->dimlen.y+int(floorf(htime.y))*gcfg->dimlen.x+int(floorf(htime.x)));
 	      mediaid=media[idx1d];
 	      if((mediaidold & MED_MASK) == (mediaid & MED_MASK)){ /**< same media */
-	          //printf("Hello from block %d, thread %d\n", blockIdx.x, threadIdx.x);
-	          float dist0,dist1;
-	          dist0=(float)((mediaidold & DIST_MASK)>>16);
-	          dist1=(float)((mediaid & DIST_MASK)>>16);
-		  //if(blockIdx.x==1 && threadIdx.x==1)
-		      //printf("Hello from block %d, thread %d, len is %f, dist0 is %f, dist1 is %f\n", blockIdx.x, threadIdx.x, slen, dist0, dist1);
-		  if(f.pscat<dist0 || f.pscat<dist1){
-		      //if(blockIdx.x==1 && threadIdx.x==1)
-		          //printf("Hello from block %d, thread %d, len is %f, dist0 is %f, dist1 is %f\n", blockIdx.x, threadIdx.x, len, dist0, dist1);
+		  if(f.pscat<(float)((mediaidold & DIST_MASK)>>16) || f.pscat<(float)((mediaid & DIST_MASK)>>16)){
 		      float ftold=f.t;
 		      f.t+=len*prop.n*gcfg->oneoverc0;
 		      if(gcfg->save2pt && f.t>=gcfg->twin0 && f.t<gcfg->twin1){
@@ -1165,31 +1155,24 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 		          p.w*=totalloss;
 		          totalloss=1.f-totalloss;
 		          int tshift=(int)(floorf((f.t-gcfg->twin0)*gcfg->Rtstep));
-			  float weight=(prop.mua==0.f) ? 0.f : ((w0-p.w)/(prop.mua));
+			  w0=(prop.mua==0.f) ? 0.f : ((w0-p.w)/(prop.mua));
 			  int seg=int(floorf(len))+1;
-			  seg=(seg<<1);
+			  //seg=(seg<<1);
 			  float dstep=len/float(seg);
 			  float segloss=expf(-prop.mua*dstep);
 			  float3 mid,pvec;
 			  pvec=float3(dstep*v->x,dstep*v->y,dstep*v->z);
 			  mid=float3(p.x+0.5f*pvec.x,p.y+0.5f*pvec.y,p.z+0.5f*pvec.z);
 			  totalloss=(totalloss==0.f)? 0.f : (1.f-segloss)/totalloss;
-			  w0=weight;
 			  for(int i=0;i<seg;i++){
 			      idx1dold=(int(floorf(mid.z))*gcfg->dimlen.y+int(floorf(mid.y))*gcfg->dimlen.x+int(floorf(mid.x)));
-			      float oldval=atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], w0*totalloss);
-			      if(oldval>MAX_ACCUM){
-			         if(atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], -oldval)<0.f)
-			            atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], oldval);
-				  else
-				      atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z+gcfg->dimlen.w], oldval);
-			      }
+			      atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z], w0*totalloss);
 			      //field[idx1dold+tshift*gcfg->dimlen.z]+=w0*totalloss;
 			      w0*=segloss;
 			      mid=float3(mid.x+pvec.x,mid.y+pvec.y,mid.z+pvec.z); 
 			  }
 			  w0=p.w;
-			  *((float3*)(&p)) = *(float3*)(&p1);
+			  *((float3*)(&p)) = *(float3*)(&htime);
 			  f.pscat=0.f;
 			  continue;
 		      }
@@ -1199,9 +1182,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 	      idx1d=idx1dold;
 	      mediaid=mediaidold;
 	  }
-	  }while(f.pscat<=0);
-
-	  
+	  }while(f.pscat<=0.f);
 	  
 	  
 	  /** Advance photon 1 step to the next voxel */
