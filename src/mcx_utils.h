@@ -192,6 +192,10 @@ typedef struct MCXConfig{
 	float4 srcparam2;            /**<a quadruplet {x,y,z,w} for additional source parameters*/
 	unsigned int srcnum;         /**<total number of pattern sources */
         float* srcpattern;           /**<a string for the source form, options include "pencil","isotropic", etc*/
+        float* detpattern;           /**<detector patterns for wide-field detection, only works with photon replay*/
+	unsigned int detpnum;        /**<number of detection patterns for photon replay*/
+	unsigned int detpsize;       /**<length of the 1D array that represents each detector pattern*/
+	unsigned int* replaydetidx;  /**<index information of detected photons for pattern detection photon replay */
 	Replay replay;               /**<a structure to prepare for photon replay*/
 	void *seeddata;              /**<poiinter to a buffer where detected photon seeds are stored*/
         int replaydet;               /**<the detector id for which to replay the detected photons, start from 1*/

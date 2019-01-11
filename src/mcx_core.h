@@ -147,6 +147,8 @@ typedef struct  __align__(16) KernelParams {
   unsigned int is2d;                 /**< is the domain a 2D slice? */
   int replaydet;                     /**< select which detector to replay, 0 for all, -1 save all separately */
   unsigned int srcnum;               /**< total number of source patterns */
+  unsigned int detpnum;              /**< total number of detector patterns*/ 
+  unsigned int detpsize;             /**< size of each detector pattern array*/
   unsigned char bc[8];               /**< boundary conditions */
 }MCXParam;
 

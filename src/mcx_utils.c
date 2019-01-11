@@ -219,6 +219,10 @@ void mcx_initcfg(Config *cfg){
      cfg->voidtime=1;
      cfg->srcpattern=NULL;
      cfg->srcnum=1;
+     cfg->detpattern=NULL;
+     cfg->detpnum=1; 
+     cfg->detpsize=0;  
+     cfg->replaydetidx=NULL; 
      cfg->debuglevel=0;
      cfg->issaveseed=0;
      cfg->issaveexit=0;
@@ -300,6 +304,10 @@ void mcx_clearcfg(Config *cfg){
         free(cfg->exportdetected);
      if(cfg->seeddata)
         free(cfg->seeddata);
+     if(cfg->detpattern)
+	free(cfg->detpattern);
+     if(cfg->replaydetidx)
+	free(cfg->replaydetidx);
 
      mcx_initcfg(cfg);
 }

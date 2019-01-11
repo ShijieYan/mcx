@@ -593,6 +593,29 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
         for(i=0;i<arraydim[0]*arraydim[1]*dimz;i++)
              cfg->srcpattern[i]=val[i];
         printf("mcx.srcpattern=[%d %d %d];\n",arraydim[0],arraydim[1],dimz);
+    }else if((strcmp(name,"detpattern")==0)){
+        arraydim=mxGetDimensions(item);
+        dimtype dimz=1;
+	if(mxGetNumberOfDimensions(item)==3){
+	    dimz=arraydim[2];
+	    cfg->detpnum=arraydim[0];
+	}
+	double *val=mxGetPr(item);
+	if(cfg->detpattern) free(cfg->detpattern);
+        cfg->detpattern=(float*)malloc(arraydim[0]*arraydim[1]*dimz*sizeof(float));
+        for(i=0;i<arraydim[0]*arraydim[1]*dimz;i++)
+             cfg->detpattern[i]=val[i];
+	cfg->detpsize=arraydim[0]*arraydim[1]*dimz/cfg->detpnum;
+        printf("mcx.detpattern=[%d %d %d];\n",arraydim[0],arraydim[1],dimz);	
+    }else if((strcmp(name,"replaydetidx")==0)){
+        arraydim=mxGetDimensions(item);
+	if(mxGetNumberOfDimensions(item)>1)
+	    mexErrMsgTxt("the 'replaydetidx' field must be converted to an 1D array");
+	unsigned int *val=(unsigned int *)mxGetPr(item);
+	if(cfg->replaydetidx) free(cfg->replaydetidx);
+	for(i=0;i<arraydim[0];i++)
+             cfg->detpattern[i]=val[i];
+        printf("mcx.replaydetidx=[%d];\n",arraydim[0]);
     }else if(strcmp(name,"shapes")==0){
         int len=mxGetNumberOfElements(item);
         if(!mxIsChar(item) || len==0)
