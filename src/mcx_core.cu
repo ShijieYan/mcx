@@ -587,7 +587,7 @@ template <int mcxsource>
 __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,Medium *prop,uint *idx1d, float *field,
            uint *mediaid,float *w0,uint isdet, float ppath[],float n_det[],uint *dpnum,
 	   RandType t[RAND_BUF_LEN],RandType photonseed[RAND_BUF_LEN],uint media[],float srcpattern[],
-	   float detpattern[], uint replaydetidx[], int threadid,RandType rngseed[],RandType seeddata[],float gdebugdata[],volatile int gprogress[]){
+	   float detpattern[], uint replaydetidx[], uint replaysrcidx[], int threadid,RandType rngseed[],RandType seeddata[],float gdebugdata[],volatile int gprogress[]){
       *w0=1.f;     ///< reuse to count for launchattempt
       f->pathlen=-1.f; ///< reuse as "canfocus" flag for each source: non-zero: focusable, zero: not focusable
       *rv=float3(gcfg->ps.x,gcfg->ps.y,gcfg->ps.z); ///< reuse as the origin of the src, needed for focusable sources
@@ -673,21 +673,52 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
 		          if(gcfg->srcnum<=1){
 			      p->w=srcpattern[(int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w)];
 			      ppath[3]=p->w;
+			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize > 0){ // for now pattern detector replay only supports pattern source
+			          for(int i=0;i<gcfg->detpnum;i++){
+				      ppath[i+3]=p->w*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+i];
+				  }
+			      }
 			  }else{
-		            for(int i=0;i<gcfg->srcnum;i++)
-			      ppath[i+3]=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
-			    p->w=1.f;
+		              if(gcfg->seed==SEED_FROM_FILE) // save launch position for pattern source photon sharing replay
+			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=(uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);			      			      
+			      for(int i=0;i<gcfg->srcnum;i++){
+			          if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize > 0){
+				      for(int j=0;j<gcfg->detpnum;j++){
+				          float srcw=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
+				          ppath[i*gcfg->detpnum+j+3]=srcw*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
+				      }
+				  }else{
+				      ppath[i+3]=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
+				  }
+			      }
+			      p->w=1.f;
                           }
 		      }else if(gcfg->srctype==MCX_SRC_PATTERN3D){
 		          if(gcfg->srcnum<=1){
 		              p->w=srcpattern[(int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
 		                              (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x)];
 			      ppath[3]=p->w;
+			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize > 0){
+			          for(int i=0;i<gcfg->detpnum;i++){
+				      ppath[i+3]=p->w*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+i];
+				  }
+			      }			      
 			  }else{
-		            for(int i=0;i<gcfg->srcnum;i++)
-		              ppath[i+3]=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
+		              if(gcfg->seed==SEED_FROM_FILE) // save launch position for pattern source photon sharing replay
+			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=(uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);			      		      			  
+		              for(int i=0;i<gcfg->srcnum;i++){
+			          if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize > 0){
+				      for(int j=0;j<gcfg->detpnum;j++){
+				          float srcw=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
 		                              (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x))*gcfg->srcnum+i];
-			    p->w=1.f;
+				          ppath[i*gcfg->detpnum+j+3]=srcw*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
+				      }
+				  }else{
+				      ppath[i+3]=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
+		                              (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x))*gcfg->srcnum+i];
+				  }
+			      }
+			      p->w=1.f;
 			  }
 		      }else if(gcfg->srctype==MCX_SRC_FOURIER)
 			  p->w=(cosf((floorf(gcfg->srcparam1.w)*rx+floorf(gcfg->srcparam2.w)*ry
@@ -961,7 +992,7 @@ kernel void mcx_test_rng(float field[],uint n_seed[]){
 
 template <int mcxsource>
 kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed[],float4 n_pos[],
-     float4 n_dir[],float4 n_len[],float n_det[], uint detectedphoton[],float srcpattern[], 
+     float4 n_dir[],float4 n_len[],float n_det[], uint detectedphoton[],float srcpattern[], uint replaysrcidx[], 
      float detpattern[],uint replaydetidx[],float replayweight[],float photontof[],int photondetid[], 
      RandType *seeddata,float *gdebugdata,volatile int *gprogress){
 
@@ -1002,7 +1033,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
      gpu_rng_init(t,n_seed,idx);
 
      if(launchnewphoton<mcxsource>(&p,&v,&f,&rv,&prop,&idx1d,field,&mediaid,&w0,0,ppath,
-       n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),media,srcpattern,detpattern,replaydetidx,
+       n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),media,srcpattern,detpattern,replaydetidx,replaysrcidx,
        idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress)){
          GPUDEBUG(("thread %d: fail to launch photon\n",idx));
 	 n_pos[idx]=*((float4*)(&p));
@@ -1206,15 +1237,17 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 		      }
 		  }else{
 		      for(int i=0;i<gcfg->srcnum;i++){
-		        if(ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]>0.f){
-		          float oldval=atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum+i], weight*ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]);
-		          if(oldval>MAX_ACCUM){
-			      if(atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum+i], -oldval)<0.f)
-			        atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum+i], oldval);
-			      else
-			        atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum+i+gcfg->dimlen.w], oldval);
+		          for(int j=0;j<gcfg->detpnum;j++){ // pattern detection replay
+			      if(ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i*gcfg->detpnum+j]>0.f){
+				float oldval=atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], weight*ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i*gcfg->detpnum+j]);
+				if(oldval>MAX_ACCUM){
+				    if(atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], -oldval)<0.f)
+				      atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], oldval);
+			            else
+			              atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j+gcfg->dimlen.w], oldval);
+				}
+			      }
 			  }
-			}
 		      }
 		  }
                   GPUDEBUG(("atomic write to [%d] %e, w=%f\n",idx1dold,weight,p.w));
@@ -1242,7 +1275,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
               GPUDEBUG(("direct relaunch at idx=[%d] mediaid=[%d], ref=[%d] bcflag=%d timegate=%d\n",idx1d,mediaid,gcfg->doreflect,isdet,f.t>gcfg->twin1));
 	      if(launchnewphoton<mcxsource>(&p,&v,&f,&rv,&prop,&idx1d,field,&mediaid,&w0,(mediaidold & DET_MASK),ppath,
 	          n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),
-		  media,srcpattern,detpattern,replaydetidx,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
+		  media,srcpattern,detpattern,replaydetidx,replaysrcidx,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
                    break;
               isdet=mediaid & DET_MASK;
               mediaid &= MED_MASK;
@@ -1257,7 +1290,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
                    GPUDEBUG(("relaunch after Russian roulette at idx=[%d] mediaid=[%d], ref=[%d]\n",idx1d,mediaid,gcfg->doreflect));
                    if(launchnewphoton<mcxsource>(&p,&v,&f,&rv,&prop,&idx1d,field,&mediaid,&w0,(mediaidold & DET_MASK),ppath,
 	                n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),
-			media,srcpattern,detpattern,replaydetidx,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
+			media,srcpattern,detpattern,replaydetidx,replaysrcidx,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
                         break;
                    isdet=mediaid & DET_MASK;
                    mediaid &= MED_MASK;
@@ -1294,7 +1327,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
                             GPUDEBUG(("transmit to air, relaunch\n"));
 		    	    if(launchnewphoton<mcxsource>(&p,&v,&f,&rv,&prop,&idx1d,field,&mediaid,&w0,(mediaidold & DET_MASK),
 			        ppath,n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),
-				media,srcpattern,detpattern,replaydetidx,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
+				media,srcpattern,detpattern,replaydetidx,replaysrcidx,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
                                 break;
                             isdet=mediaid & DET_MASK;
                             mediaid &= MED_MASK;
@@ -1496,6 +1529,7 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
 
      uint  *media=(uint *)(cfg->vol);
      float  *field;
+     uint   *replaysrcidx=NULL;
      float4 *Ppos,*Pdir,*Plen,*Plen0;
      uint   *Pseed;
      float  *Pdet;
@@ -1510,7 +1544,7 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
 
      uint *gmedia;
      float4 *gPpos,*gPdir,*gPlen;
-     uint   *gPseed,*gdetected,*greplaydetidx=NULL;
+     uint   *gPseed,*gdetected,*greplaydetidx=NULL,*greplaysrcidx=NULL;
      int    *greplaydetid=NULL;
      float  *gPdet,*gsrcpattern,*gfield,*genergy,*greplayw=NULL,*greplaytof=NULL,*gdebugdata=NULL,*gdetpattern=NULL;
      RandType *gseeddata=NULL;
@@ -1593,6 +1627,8 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
              field=(float *)calloc(sizeof(float)*dimxyz,gpu[gpuid].maxgate*cfg->detnum); //the second half will be used to accumulate
 	 }else{
              field=(float *)calloc(sizeof(float)*dimxyz,gpu[gpuid].maxgate); //the second half will be used to accumulate
+	     if(cfg->seed==SEED_FROM_FILE && cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1)
+	         replaysrcidx=(uint *)calloc(cfg->nphoton,sizeof(uint));
 	 }
      }
 
@@ -1743,11 +1779,15 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
      }else
          CUDA_ASSERT(cudaMalloc((void **) &gPseed, sizeof(RandType)*gpu[gpuid].autothread*RAND_BUF_LEN));
 
-     if(cfg->srctype==MCX_SRC_PATTERN)
+     if(cfg->srctype==MCX_SRC_PATTERN){
          CUDA_ASSERT(cudaMalloc((void **) &gsrcpattern, sizeof(float)*(int)(cfg->srcparam1.w*cfg->srcparam2.w*cfg->srcnum)));
-     else if(cfg->srctype==MCX_SRC_PATTERN3D)
+	 if(cfg->seed=SEED_FROM_FILE && cfg->srcnum>1) // store the idx of launch position on the source pattern for normalization of photon sharing replay
+             CUDA_ASSERT(cudaMalloc((void **) &greplaysrcidx, sizeof(uint)*cfg->nphoton));
+     }else if(cfg->srctype==MCX_SRC_PATTERN3D){
          CUDA_ASSERT(cudaMalloc((void **) &gsrcpattern, sizeof(float)*(int)(cfg->srcparam1.x*cfg->srcparam1.y*cfg->srcparam1.z*cfg->srcnum)));
-	 
+	 if(cfg->seed=SEED_FROM_FILE && cfg->srcnum>1) // store the idx of launch position on the source pattern for normalization of photon sharing replay
+             CUDA_ASSERT(cudaMalloc((void **) &greplaysrcidx, sizeof(uint)*cfg->nphoton));
+     } 
      if(cfg->replaydetidx){
          CUDA_ASSERT(cudaMalloc((void **) &gdetpattern, sizeof(float)*(int)(cfg->detpnum*cfg->detpsize)));
          CUDA_ASSERT(cudaMalloc((void **) &greplaydetidx, sizeof(uint)*cfg->nphoton));
@@ -1883,6 +1923,9 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
                Pseed[i]=((rand() << 16) | (rand() << 1) | (rand() >> 14));
 	     CUDA_ASSERT(cudaMemcpy(gPseed, Pseed, sizeof(RandType)*gpu[gpuid].autothread*RAND_BUF_LEN,  cudaMemcpyHostToDevice));
            }
+	   
+	   if(cfg->seed==SEED_FROM_FILE && cfg->replaysrcidx && cfg->srcnum>1)
+               CUDA_ASSERT(cudaMemset(greplaysrcidx,0,sizeof(uint)*cfg->nphoton));
            tic0=GetTimeMillis();
 #ifndef WIN32
 #pragma omp master
@@ -1895,22 +1938,22 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
            mcx_flush(cfg);
 
 	   switch(cfg->srctype) {
-		case(MCX_SRC_PENCIL): mcx_main_loop<MCX_SRC_PENCIL> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_ISOTROPIC): mcx_main_loop<MCX_SRC_ISOTROPIC> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_CONE): mcx_main_loop<MCX_SRC_CONE> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_GAUSSIAN): mcx_main_loop<MCX_SRC_GAUSSIAN> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_PLANAR): mcx_main_loop<MCX_SRC_PLANAR> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_PATTERN): mcx_main_loop<MCX_SRC_PATTERN> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_FOURIER): mcx_main_loop<MCX_SRC_FOURIER> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_ARCSINE): mcx_main_loop<MCX_SRC_ARCSINE> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_DISK): mcx_main_loop<MCX_SRC_DISK> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_FOURIERX): mcx_main_loop<MCX_SRC_FOURIERX> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_FOURIERX2D): mcx_main_loop<MCX_SRC_FOURIERX2D> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_ZGAUSSIAN): mcx_main_loop<MCX_SRC_ZGAUSSIAN> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_LINE): mcx_main_loop<MCX_SRC_LINE> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_SLIT): mcx_main_loop<MCX_SRC_SLIT> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_PENCILARRAY): mcx_main_loop<MCX_SRC_PENCILARRAY> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
-		case(MCX_SRC_PATTERN3D): mcx_main_loop<MCX_SRC_PATTERN3D> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_PENCIL): mcx_main_loop<MCX_SRC_PENCIL> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_ISOTROPIC): mcx_main_loop<MCX_SRC_ISOTROPIC> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_CONE): mcx_main_loop<MCX_SRC_CONE> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_GAUSSIAN): mcx_main_loop<MCX_SRC_GAUSSIAN> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_PLANAR): mcx_main_loop<MCX_SRC_PLANAR> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_PATTERN): mcx_main_loop<MCX_SRC_PATTERN> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_FOURIER): mcx_main_loop<MCX_SRC_FOURIER> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_ARCSINE): mcx_main_loop<MCX_SRC_ARCSINE> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_DISK): mcx_main_loop<MCX_SRC_DISK> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_FOURIERX): mcx_main_loop<MCX_SRC_FOURIERX> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_FOURIERX2D): mcx_main_loop<MCX_SRC_FOURIERX2D> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_ZGAUSSIAN): mcx_main_loop<MCX_SRC_ZGAUSSIAN> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_LINE): mcx_main_loop<MCX_SRC_LINE> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_SLIT): mcx_main_loop<MCX_SRC_SLIT> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_PENCILARRAY): mcx_main_loop<MCX_SRC_PENCILARRAY> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
+		case(MCX_SRC_PATTERN3D): mcx_main_loop<MCX_SRC_PATTERN3D> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplaysrcidx,gdetpattern,greplaydetidx,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress); break;
 	   }
 
 #pragma omp master
@@ -2014,6 +2057,10 @@ is more than what your have specified (%d), please use the -H option to specify 
                       field[fieldlen+i]+=field[i];
                }
            }
+	   
+	   if(cfg->seed==SEED_FROM_FILE && cfg->replaysrcidx && cfg->srcnum>1){
+               CUDA_ASSERT(cudaMemcpy(replaysrcidx, greplaysrcidx,sizeof(uint)*cfg->nphoton,cudaMemcpyDeviceToHost));               
+	   }
        } /*end of respin loop*/
 
 #pragma omp critical
@@ -2042,6 +2089,12 @@ is more than what your have specified (%d), please use the -H option to specify 
 #pragma omp atomic
                   cfg->exportfield[i]+=field[i];
        }
+       
+       if(cfg->seed==SEED_FROM_FILE && cfg->replaysrcidx && cfg->srcnum>1){
+           for(i=0;i<(int)cfg->nphoton;i++)
+#pragma omp atomic	   
+	       cfg->replaysrcidx[i]+=replaysrcidx[i];
+       }
 
        if(param.twin1<cfg->tend){
             CUDA_ASSERT(cudaMemset(genergy,0,sizeof(float)*(gpu[gpuid].autothread<<1)));
@@ -2052,7 +2105,7 @@ is more than what your have specified (%d), please use the -H option to specify 
      /*let the master thread to deal with the normalization and file IO*/
 #pragma omp master
 {
-     if(cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1){// post-processing only for multi-srcpattern
+     if(cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1 && cfg->seed!=SEED_FROM_FILE){// post-processing only for multi-srcpattern
          srcpw=(float *)calloc(cfg->srcnum,sizeof(float));
 	 energytot=(float *)calloc(cfg->srcnum,sizeof(float));
 	 energyabs=(float *)calloc(cfg->srcnum,sizeof(float));
@@ -2076,7 +2129,7 @@ is more than what your have specified (%d), please use the -H option to specify 
 	 }
      }
      if(cfg->isnormalized){
-	   float *scale=(float *)calloc(cfg->srcnum,sizeof(float));
+	   float *scale=(float *)calloc(cfg->srcnum*cfg->detpnum,sizeof(float));
 	   scale[0]=1.f;
 	   int isnormalized=0;
            MCX_FPRINTF(cfg->flog,"normalizing raw data ...\t");
@@ -2099,18 +2152,33 @@ is more than what your have specified (%d), please use the -H option to specify 
 	               if(scale[0]>0.f)
 	                   scale[0]=cfg->unitinmm/scale[0];
                        MCX_FPRINTF(cfg->flog,"normalization factor for detector %d alpha=%f\n",detid, scale[0]);  fflush(cfg->flog);
-                       mcx_normalize(cfg->exportfield+(detid-1)*dimxyz*gpu[gpuid].maxgate,scale[0],dimxyz*gpu[gpuid].maxgate,cfg->isnormalized,0,1);
+                       mcx_normalize(cfg->exportfield+(detid-1)*dimxyz*gpu[gpuid].maxgate,scale[0],dimxyz*gpu[gpuid].maxgate,cfg->isnormalized,0,1,0,1);
 		   }
 		   isnormalized=1;
 	       }else{
-	           scale[0]=0.f;
-	           for(size_t i=0;i<cfg->nphoton;i++)
-	               scale[0]+=cfg->replay.weight[i];
-	           if(scale[0]>0.f)
-                       scale[0]=cfg->unitinmm/scale[0];
+	           if((cfg->srctype==MCX_SRC_PATTERN || cfg->srctype==MCX_SRC_PATTERN3D) && cfg->srcnum>1){ // replay normalizor for multiple s-d pairs
+		       float* kahanc=(float*)calloc(cfg->srcnum*cfg->detpnum,sizeof(float));
+		       int j;
+		       for(iter=0;iter<(int)cfg->nphoton;iter++)
+		           for(size_t i=0;i<cfg->srcnum;i++)
+		               for(j=0;j<(int)cfg->detpnum;j++)
+			           mcx_kahanSum(&scale[i*cfg->detpnum+j],&kahanc[i*cfg->detpnum+j],cfg->replay.weight[iter]*cfg->srcpattern[cfg->replaysrcidx[iter]*cfg->srcnum+i]*
+				       ((cfg->detpattern)? cfg->detpattern[cfg->replaysrcidx[iter]*cfg->detpnum+j] : 1));
+		       free(kahanc);
+		   }else{
+	               scale[0]=0.f;
+	               for(size_t i=0;i<cfg->nphoton;i++)
+	                   scale[0]+=cfg->replay.weight[i];
+		   }
+	           for(size_t i=0;i<cfg->srcnum;i++){
+		       for(iter=0;iter<(int)cfg->detpnum;iter++){
+		           if(scale[i*cfg->detpnum+iter]>0.f)
+		               scale[i*cfg->detpnum+iter]=cfg->unitinmm/scale[i*cfg->detpnum+iter];
+		       }
+		   }
 	       }
            }
-	   if(cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1){// post-processing only for multi-srcpattern
+	   if((cfg->srctype==MCX_SRC_PATTERN || cfg->srctype==MCX_SRC_PATTERN3D) && cfg->srcnum>1 && cfg->seed!=SEED_FROM_FILE){// post-processing only for multi-srcpattern
 	       float scaleref=scale[0];
 	       int psize=(int)cfg->srcparam1.w*(int)cfg->srcparam2.w;
 	       for(i=0;i<int(cfg->srcnum);i++){
@@ -2121,8 +2189,15 @@ is more than what your have specified (%d), please use the -H option to specify 
 	 cfg->his.normalizer=scale[0];
          if(!isnormalized){
 	     for(i=0;i<(int)cfg->srcnum;i++){
-                 MCX_FPRINTF(cfg->flog,"source %d, normalization factor alpha=%f\n",(i+1),scale[i]);  fflush(cfg->flog);
-	         mcx_normalize(cfg->exportfield,scale[i],fieldlen/cfg->srcnum,cfg->isnormalized,i,cfg->srcnum);
+	         for(iter=0;iter<(int)cfg->detpnum;iter++){
+		     if(cfg->detpnum<=1){
+		         MCX_FPRINTF(cfg->flog,"source %d, normalization factor alpha=%f\n",i+1,scale[i]);  fflush(cfg->flog);
+		         mcx_normalize(cfg->exportfield,scale[i],fieldlen/cfg->srcnum,cfg->isnormalized,i,cfg->srcnum,0,1);
+		     }else{ // normalizors for source-detector pairs
+		         MCX_FPRINTF(cfg->flog,"source %d, detector %d, normalization factor alpha=%f\n",i+1,iter+1,scale[i*cfg->detpnum+iter+1]);  fflush(cfg->flog);
+     		         mcx_normalize(cfg->exportfield,scale[i*cfg->detpnum+iter+1],fieldlen/(cfg->srcnum*cfg->detpnum),cfg->isnormalized,i,cfg->srcnum,iter,cfg->detpnum);
+		     }
+		 }
 	     }
 	 }
 	 free(scale);
@@ -2174,7 +2249,7 @@ is more than what your have specified (%d), please use the -H option to specify 
      MCX_FPRINTF(cfg->flog,"simulated %ld photons (%ld) with %d threads (repeat x%d)\nMCX simulation speed: %.2f photon/ms\n",
              (long int)cfg->nphoton*((cfg->respin>1) ? (cfg->respin) : 1),(long int)cfg->nphoton*((cfg->respin>1) ? (cfg->respin) : 1),
 	     gpu[gpuid].autothread,ABS(cfg->respin),(double)cfg->nphoton*((cfg->respin>1) ? (cfg->respin) : 1)/max(1,cfg->runtime)); fflush(cfg->flog);
-     if(cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1){
+     if(cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1 && cfg->detpnum<=1){
          for(i=0;i<(int)cfg->srcnum;i++){
 	     MCX_FPRINTF(cfg->flog,"source #%d total simulated energy: %.2f\tabsorbed: %5.5f%%\n(loss due to initial specular reflection is excluded in the total)\n",
                  i+1,energytot[i],energyabs[i]/energytot[i]*100.f);fflush(cfg->flog);
@@ -2212,6 +2287,8 @@ is more than what your have specified (%d), please use the -H option to specify 
      }
      if(cfg->srctype==MCX_SRC_PATTERN3D || cfg->srctype==MCX_SRC_PATTERN){
          CUDA_ASSERT(cudaFree(gsrcpattern));
+	 if(cfg->seed==SEED_FROM_FILE && cfg->replaysrcidx)
+	     CUDA_ASSERT(cudaFree(greplaysrcidx));
      }
      if(cfg->replaydetidx || cfg->detpattern){
          CUDA_ASSERT(cudaFree(gdetpattern));

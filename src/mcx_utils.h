@@ -195,6 +195,7 @@ typedef struct MCXConfig{
         float* detpattern;           /**<detector patterns for wide-field detection, only works with photon replay*/
 	unsigned int detpnum;        /**<number of detection patterns for photon replay*/
 	unsigned int detpsize;       /**<length of the 1D array that represents each detector pattern*/
+	unsigned int* replaysrcidx;  /**<index information of photon launch positions for photon sharing replay */
 	unsigned int* replaydetidx;  /**<index information of detected photons for pattern detection photon replay */
 	Replay replay;               /**<a structure to prepare for photon replay*/
 	void *seeddata;              /**<poiinter to a buffer where detected photon seeds are stored*/
@@ -235,7 +236,7 @@ void mcx_parsecmd(int argc, char* argv[], Config *cfg);
 void mcx_usage(Config *cfg,char *exename);
 void mcx_printheader(Config *cfg);
 void mcx_loadvolume(char *filename,Config *cfg);
-void mcx_normalize(float field[], float scale, int fieldlen, int option, int pidx, int srcnum);
+void mcx_normalize(float field[], float scale, int fieldlen, int option, int srcpidx, int srcnum, int detpidx, int detpnum);
 void mcx_kahanSum(float *sum, float *kahanc, float input);
 int  mcx_readarg(int argc, char *argv[], int id, void *output,const char *type);
 void mcx_printlog(Config *cfg, char *str);

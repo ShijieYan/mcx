@@ -221,7 +221,8 @@ void mcx_initcfg(Config *cfg){
      cfg->srcnum=1;
      cfg->detpattern=NULL;
      cfg->detpnum=1; 
-     cfg->detpsize=0;  
+     cfg->detpsize=0;
+     cfg->replaysrcidx=NULL;  
      cfg->replaydetidx=NULL; 
      cfg->debuglevel=0;
      cfg->issaveseed=0;
@@ -308,6 +309,8 @@ void mcx_clearcfg(Config *cfg){
 	free(cfg->detpattern);
      if(cfg->replaydetidx)
 	free(cfg->replaydetidx);
+     if(cfg->replaysrcidx)
+	free(cfg->replaysrcidx);
 
      mcx_initcfg(cfg);
 }
@@ -494,12 +497,12 @@ void mcx_printlog(Config *cfg, char *str){
  * @param[in] option: if set to 2, only normalize positive values (negative values for diffuse reflectance calculations)
  */
 
-void mcx_normalize(float field[], float scale, int fieldlen, int option, int pidx, int srcnum){
+void mcx_normalize(float field[], float scale, int fieldlen, int option, int srcpidx, int srcnum, int detpidx, int detpnum){
      int i;
      for(i=0;i<fieldlen;i++){
-         if(option==2 && field[i*srcnum+pidx]<0.f)
+         if(option==2 && field[i*srcnum*detpnum+srcpidx*detpnum+detpidx]<0.f)
 	     continue;
-         field[i*srcnum+pidx]*=scale;
+         field[i*srcnum*detpnum+srcpidx*detpnum+detpidx]*=scale;
      }
 }
 

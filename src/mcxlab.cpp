@@ -218,10 +218,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	
 	/** Initialize all buffers necessary to store the output variables */
 	if(nlhs>=1){
-            int fieldlen=cfg.dim.x*cfg.dim.y*cfg.dim.z*(int)((cfg.tend-cfg.tstart)/cfg.tstep+0.5)*cfg.srcnum;
+            int fieldlen=cfg.dim.x*cfg.dim.y*cfg.dim.z*(int)((cfg.tend-cfg.tstart)/cfg.tstep+0.5)*cfg.srcnum*cfg.detpnum;
 	    if(cfg.replay.seed!=NULL && cfg.replaydet==-1)
 	        fieldlen*=cfg.detnum;
 	    cfg.exportfield = (float*)calloc(fieldlen,sizeof(float));
+	    if((cfg.srctype==MCX_SRC_PATTERN3D || cfg.srctype==MCX_SRC_PATTERN) && cfg.seed==SEED_FROM_FILE)
+	        cfg.replaysrcidx = (unsigned int*)calloc(cfg.nphoton,sizeof(unsigned int));
 	}
 	if(nlhs>=2){
 	    cfg.exportdetected=(float*)malloc((2+(cfg.medianum-1)*(2+(cfg.ismomentum>0))+(cfg.issaveexit>0)*6)*cfg.maxdetphoton*sizeof(float));
@@ -609,11 +611,11 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
         printf("mcx.detpattern=[%d %d %d];\n",arraydim[0],arraydim[1],dimz);	
     }else if((strcmp(name,"replaydetidx")==0)){
         arraydim=mxGetDimensions(item);
-	if(mxGetNumberOfDimensions(item)>1)
-	    mexErrMsgTxt("the 'replaydetidx' field must be converted to an 1D array");
+	if(mxGetNumberOfDimensions(item)>2)
+	    mexErrMsgTxt("the 'replaydetidx' field must be converted to an array");
 	unsigned int *val=(unsigned int *)mxGetPr(item);
 	if(cfg->replaydetidx) free(cfg->replaydetidx);
-	for(i=0;i<arraydim[0];i++)
+	for(i=0;i<MAX(arraydim[0],arraydim[1]);i++)
              cfg->detpattern[i]=val[i];
         printf("mcx.replaydetidx=[%d];\n",arraydim[0]);
     }else if(strcmp(name,"shapes")==0){
