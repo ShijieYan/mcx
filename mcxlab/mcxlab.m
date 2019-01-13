@@ -278,9 +278,13 @@ cfg=varargin{1};
 
 if(~ischar(cfg))
     for i=1:length(varargout{1})
-        if(isfield(cfg(i),'srcnum') && cfg(i).srcnum>1)
+        if(isfield(cfg(i),'srcnum') && cfg(i).srcnum>1 && ~isfield(cfg(i),'detpattern'))
             dim=size(varargout{1}(i).data);
             varargout{1}(i).data=reshape(varargout{1}(i).data,[cfg(i).srcnum, dim(1)/cfg(i).srcnum dim(2:end)]);
+            varargout{1}(i).data=permute(varargout{1}(i).data,[2:(length(dim)+1) 1]);
+        elseif(isfield(cfg(i),'srcnum') && cfg(i).srcnum>=1 && isfield(cfg(i),'detpattern'))
+            dim=size(varargout{1}(i).data);
+            varargout{1}(i).data=reshape(varargout{1}(i).data,[cfg(i).srcnum*size(cfg(i).detpattern,1), dim(1)/(cfg(i).srcnum*size(cfg(i).detpattern,1)) dim(2:end)]);
             varargout{1}(i).data=permute(varargout{1}(i).data,[2:(length(dim)+1) 1]);
         end
     end

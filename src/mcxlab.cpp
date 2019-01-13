@@ -201,7 +201,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	    mcx_set_field(prhs[0],tmp,ifield,&cfg);
 	}
 	mcx_flush(&cfg);
-
+        
         /** Overwite the output flags using the number of output present */
 	cfg.issave2pt=(nlhs>=1);  /** save fluence rate to the 1st output if present */
 	cfg.issavedet=(nlhs>=2);  /** save detected photon data to the 2nd output if present */
@@ -315,7 +315,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]){
 	/** if the 1st output presents, output the fluence/energy-deposit volume data */
         if(nlhs>=1){
 	    int fieldlen;
-            fielddim[0]=cfg.srcnum*cfg.dim.x; fielddim[1]=cfg.dim.y; 
+            fielddim[0]=cfg.srcnum*cfg.detpnum*cfg.dim.x; fielddim[1]=cfg.dim.y; 
 	    fielddim[2]=cfg.dim.z; fielddim[3]=(int)((cfg.tend-cfg.tstart)/cfg.tstep+0.5);
 	    if(cfg.replay.seed!=NULL && cfg.replaydet==-1)
 	        fielddim[4]=cfg.detnum;
@@ -593,7 +593,7 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
 	if(cfg->srcpattern) free(cfg->srcpattern);
         cfg->srcpattern=(float*)malloc(arraydim[0]*arraydim[1]*dimz*sizeof(float));
         for(i=0;i<arraydim[0]*arraydim[1]*dimz;i++)
-             cfg->srcpattern[i]=val[i];
+	    cfg->srcpattern[i]=val[i];
         printf("mcx.srcpattern=[%d %d %d];\n",arraydim[0],arraydim[1],dimz);
     }else if((strcmp(name,"detpattern")==0)){
         arraydim=mxGetDimensions(item);
@@ -606,18 +606,19 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
 	if(cfg->detpattern) free(cfg->detpattern);
         cfg->detpattern=(float*)malloc(arraydim[0]*arraydim[1]*dimz*sizeof(float));
         for(i=0;i<arraydim[0]*arraydim[1]*dimz;i++)
-             cfg->detpattern[i]=val[i];
+	    cfg->detpattern[i]=val[i];
 	cfg->detpsize=arraydim[0]*arraydim[1]*dimz/cfg->detpnum;
-        printf("mcx.detpattern=[%d %d %d];\n",arraydim[0],arraydim[1],dimz);	
+        printf("mcx.detpattern=[%d %d %d];\nmcx.detpnum=%d;\n",arraydim[0],arraydim[1],dimz,cfg->detpnum);	
     }else if((strcmp(name,"replaydetidx")==0)){
         arraydim=mxGetDimensions(item);
 	if(mxGetNumberOfDimensions(item)>2)
 	    mexErrMsgTxt("the 'replaydetidx' field must be converted to an array");
 	unsigned int *val=(unsigned int *)mxGetPr(item);
 	if(cfg->replaydetidx) free(cfg->replaydetidx);
-	for(i=0;i<MAX(arraydim[0],arraydim[1]);i++)
-             cfg->detpattern[i]=val[i];
-        printf("mcx.replaydetidx=[%d];\n",arraydim[0]);
+	cfg->replaydetidx=(unsigned int*)malloc(MAX(arraydim[0],arraydim[1])*sizeof(unsigned int));
+	for(i=0;i<MAX(arraydim[0],arraydim[1]);i++) // either row or column vector
+             cfg->replaydetidx[i]=val[i];
+        printf("mcx.replaydetidx=[%d];\n",MAX(arraydim[0],arraydim[1]));
     }else if(strcmp(name,"shapes")==0){
         int len=mxGetNumberOfElements(item);
         if(!mxIsChar(item) || len==0)
@@ -740,6 +741,8 @@ void mcx_replay_prep(Config *cfg){
             cfg->replay.weight[cfg->nphoton]=1.f;
 	    cfg->replay.tof[cfg->nphoton]=0.f;
             cfg->replay.detid[cfg->nphoton]=(int)(detps[i*dimdetps[0]]);
+	    if(cfg->replaydetidx)
+	        cfg->replaydetidx[cfg->nphoton]=cfg->replaydetidx[i];
             for(j=2;j<cfg->medianum+1;j++){
                 cfg->replay.weight[cfg->nphoton]*=expf(-cfg->prop[j-1].mua*detps[i*dimdetps[0]+j]*cfg->unitinmm);
                 cfg->replay.tof[cfg->nphoton]+=detps[i*dimdetps[0]+j]*cfg->unitinmm*R_C0*cfg->prop[j-1].n;
@@ -752,6 +755,7 @@ void mcx_replay_prep(Config *cfg){
     cfg->replay.weight=(float*)realloc(cfg->replay.weight, cfg->nphoton*sizeof(float));
     cfg->replay.tof=(float*)realloc(cfg->replay.tof, cfg->nphoton*sizeof(float));
     cfg->replay.detid=(int*)realloc(cfg->replay.detid, cfg->nphoton*sizeof(int));
+    cfg->replaydetidx=(unsigned int*)realloc(cfg->replaydetidx, cfg->nphoton*sizeof(unsigned int));
 }
 
 /** 

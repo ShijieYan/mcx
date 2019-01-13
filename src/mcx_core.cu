@@ -673,7 +673,7 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
 		          if(gcfg->srcnum<=1){
 			      p->w=srcpattern[(int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w)];
 			      ppath[3]=p->w;
-			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize > 0){ // for now pattern detector replay only supports pattern source
+			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0){ // for now pattern detector replay only supports pattern source
 			          for(int i=0;i<gcfg->detpnum;i++){
 				      ppath[i+3]=p->w*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+i];
 				  }
@@ -682,11 +682,10 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
 		              if(gcfg->seed==SEED_FROM_FILE) // save launch position for pattern source photon sharing replay
 			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=(uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);			      			      
 			      for(int i=0;i<gcfg->srcnum;i++){
-			          if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize > 0){
-				      for(int j=0;j<gcfg->detpnum;j++){
-				          float srcw=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
+			          if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0){
+				      float srcw=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
+				      for(int j=0;j<gcfg->detpnum;j++)
 				          ppath[i*gcfg->detpnum+j+3]=srcw*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
-				      }
 				  }else{
 				      ppath[i+3]=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
 				  }
@@ -698,7 +697,7 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
 		              p->w=srcpattern[(int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
 		                              (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x)];
 			      ppath[3]=p->w;
-			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize > 0){
+			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0){
 			          for(int i=0;i<gcfg->detpnum;i++){
 				      ppath[i+3]=p->w*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+i];
 				  }
@@ -707,12 +706,11 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
 		              if(gcfg->seed==SEED_FROM_FILE) // save launch position for pattern source photon sharing replay
 			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=(uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);			      		      			  
 		              for(int i=0;i<gcfg->srcnum;i++){
-			          if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize > 0){
-				      for(int j=0;j<gcfg->detpnum;j++){
-				          float srcw=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
-		                              (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x))*gcfg->srcnum+i];
+			          if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0){
+				      float srcw=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
+				          (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x))*gcfg->srcnum+i];
+				      for(int j=0;j<gcfg->detpnum;j++)
 				          ppath[i*gcfg->detpnum+j+3]=srcw*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
-				      }
 				  }else{
 				      ppath[i+3]=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
 		                              (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x))*gcfg->srcnum+i];
@@ -1781,11 +1779,11 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
 
      if(cfg->srctype==MCX_SRC_PATTERN){
          CUDA_ASSERT(cudaMalloc((void **) &gsrcpattern, sizeof(float)*(int)(cfg->srcparam1.w*cfg->srcparam2.w*cfg->srcnum)));
-	 if(cfg->seed=SEED_FROM_FILE && cfg->srcnum>1) // store the idx of launch position on the source pattern for normalization of photon sharing replay
+	 if(cfg->seed==SEED_FROM_FILE && cfg->srcnum>1) // store the idx of launch position on the source pattern for normalization of photon sharing replay
              CUDA_ASSERT(cudaMalloc((void **) &greplaysrcidx, sizeof(uint)*cfg->nphoton));
      }else if(cfg->srctype==MCX_SRC_PATTERN3D){
          CUDA_ASSERT(cudaMalloc((void **) &gsrcpattern, sizeof(float)*(int)(cfg->srcparam1.x*cfg->srcparam1.y*cfg->srcparam1.z*cfg->srcnum)));
-	 if(cfg->seed=SEED_FROM_FILE && cfg->srcnum>1) // store the idx of launch position on the source pattern for normalization of photon sharing replay
+	 if(cfg->seed==SEED_FROM_FILE && cfg->srcnum>1) // store the idx of launch position on the source pattern for normalization of photon sharing replay
              CUDA_ASSERT(cudaMalloc((void **) &greplaysrcidx, sizeof(uint)*cfg->nphoton));
      } 
      if(cfg->replaydetidx){
@@ -1917,7 +1915,7 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
  	   CUDA_ASSERT(cudaMemcpy(gPpos,  Ppos,  sizeof(float4)*gpu[gpuid].autothread,  cudaMemcpyHostToDevice));
 	   CUDA_ASSERT(cudaMemcpy(gPdir,  Pdir,  sizeof(float4)*gpu[gpuid].autothread,  cudaMemcpyHostToDevice));
 	   CUDA_ASSERT(cudaMemcpy(gPlen,  Plen,  sizeof(float4)*gpu[gpuid].autothread,  cudaMemcpyHostToDevice));
-
+	   
            if(cfg->seed!=SEED_FROM_FILE){
              for (i=0; i<gpu[gpuid].autothread*((int)(sizeof(RandType)*RAND_BUF_LEN)>>2); i++)
                Pseed[i]=((rand() << 16) | (rand() << 1) | (rand() >> 14));
@@ -2105,7 +2103,7 @@ is more than what your have specified (%d), please use the -H option to specify 
      /*let the master thread to deal with the normalization and file IO*/
 #pragma omp master
 {
-     if(cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1 && cfg->seed!=SEED_FROM_FILE){// post-processing only for multi-srcpattern
+     if(cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1 && cfg->seed!=SEED_FROM_FILE){// post-processing only for forward multi-srcpattern
          srcpw=(float *)calloc(cfg->srcnum,sizeof(float));
 	 energytot=(float *)calloc(cfg->srcnum,sizeof(float));
 	 energyabs=(float *)calloc(cfg->srcnum,sizeof(float));
@@ -2124,7 +2122,7 @@ is more than what your have specified (%d), please use the -H option to specify 
 	         int j;
 	         for(iter=0;iter<gpu[gpuid].maxgate;iter++)
 		     for(j=0;j<(int)dimlen.z;j++)
-		         mcx_kahanSum(&energyabs[i],&kahanc,cfg->exportfield[iter*dimxyz+(j*cfg->srcnum+i)]*cfg->prop[cfg->vol[j]].mua);
+		         mcx_kahanSum(&energyabs[i],&kahanc,cfg->exportfield[iter*dimxyz+(j*cfg->srcnum+i)]*cfg->prop[(uint)cfg->vol[j] & MED_MASK].mua);
 	     }
 	 }
      }
@@ -2156,14 +2154,15 @@ is more than what your have specified (%d), please use the -H option to specify 
 		   }
 		   isnormalized=1;
 	       }else{
-	           if((cfg->srctype==MCX_SRC_PATTERN || cfg->srctype==MCX_SRC_PATTERN3D) && cfg->srcnum>1){ // replay normalizor for multiple s-d pairs
+	           if((cfg->srctype==MCX_SRC_PATTERN || cfg->srctype==MCX_SRC_PATTERN3D)){ // replay normalizor for multiple s-d pairs
 		       float* kahanc=(float*)calloc(cfg->srcnum*cfg->detpnum,sizeof(float));
 		       int j;
 		       for(iter=0;iter<(int)cfg->nphoton;iter++)
 		           for(size_t i=0;i<cfg->srcnum;i++)
-		               for(j=0;j<(int)cfg->detpnum;j++)
-			           mcx_kahanSum(&scale[i*cfg->detpnum+j],&kahanc[i*cfg->detpnum+j],cfg->replay.weight[iter]*cfg->srcpattern[cfg->replaysrcidx[iter]*cfg->srcnum+i]*
-				       ((cfg->detpattern)? cfg->detpattern[cfg->replaysrcidx[iter]*cfg->detpnum+j] : 1));
+		               for(j=0;j<(int)cfg->detpnum;j++){
+			           mcx_kahanSum(&scale[i*cfg->detpnum+j],&kahanc[i*cfg->detpnum+j],cfg->replay.weight[iter]*cfg->srcpattern[cfg->replaysrcidx[iter]*cfg->srcnum+i]* 
+				       ((cfg->detpattern)? cfg->detpattern[cfg->replaydetidx[iter]*cfg->detpnum+j] : 1)); 
+			       }
 		       free(kahanc);
 		   }else{
 	               scale[0]=0.f;
@@ -2194,8 +2193,8 @@ is more than what your have specified (%d), please use the -H option to specify 
 		         MCX_FPRINTF(cfg->flog,"source %d, normalization factor alpha=%f\n",i+1,scale[i]);  fflush(cfg->flog);
 		         mcx_normalize(cfg->exportfield,scale[i],fieldlen/cfg->srcnum,cfg->isnormalized,i,cfg->srcnum,0,1);
 		     }else{ // normalizors for source-detector pairs
-		         MCX_FPRINTF(cfg->flog,"source %d, detector %d, normalization factor alpha=%f\n",i+1,iter+1,scale[i*cfg->detpnum+iter+1]);  fflush(cfg->flog);
-     		         mcx_normalize(cfg->exportfield,scale[i*cfg->detpnum+iter+1],fieldlen/(cfg->srcnum*cfg->detpnum),cfg->isnormalized,i,cfg->srcnum,iter,cfg->detpnum);
+		         MCX_FPRINTF(cfg->flog,"source %d, detector %d, normalization factor alpha=%f\n",i+1,iter+1,scale[i*cfg->detpnum+iter]);  fflush(cfg->flog);
+     		         mcx_normalize(cfg->exportfield,scale[i*cfg->detpnum+iter],fieldlen/(cfg->srcnum*cfg->detpnum),cfg->isnormalized,i,cfg->srcnum,iter,cfg->detpnum);
 		     }
 		 }
 	     }
@@ -2249,8 +2248,8 @@ is more than what your have specified (%d), please use the -H option to specify 
      MCX_FPRINTF(cfg->flog,"simulated %ld photons (%ld) with %d threads (repeat x%d)\nMCX simulation speed: %.2f photon/ms\n",
              (long int)cfg->nphoton*((cfg->respin>1) ? (cfg->respin) : 1),(long int)cfg->nphoton*((cfg->respin>1) ? (cfg->respin) : 1),
 	     gpu[gpuid].autothread,ABS(cfg->respin),(double)cfg->nphoton*((cfg->respin>1) ? (cfg->respin) : 1)/max(1,cfg->runtime)); fflush(cfg->flog);
-     if(cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1 && cfg->detpnum<=1){
-         for(i=0;i<(int)cfg->srcnum;i++){
+     if(cfg->srctype==MCX_SRC_PATTERN && cfg->srcnum>1 && cfg->seed!=SEED_FROM_FILE){
+         for(i=0;i<(int)cfg->srcnum;i++){          
 	     MCX_FPRINTF(cfg->flog,"source #%d total simulated energy: %.2f\tabsorbed: %5.5f%%\n(loss due to initial specular reflection is excluded in the total)\n",
                  i+1,energytot[i],energyabs[i]/energytot[i]*100.f);fflush(cfg->flog);
 	 }
