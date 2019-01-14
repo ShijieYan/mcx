@@ -1122,8 +1122,31 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
                                 field[idx1d+tshift*gcfg->dimlen.z]+=tmp0*replayweight[(idx*gcfg->threadphoton+min(idx,gcfg->oddphotons-1)+(int)f.ndone)];
 #ifdef USE_ATOMIC
                             }else{
-                                atomicadd(& field[idx1d+tshift*gcfg->dimlen.z], tmp0*replayweight[(idx*gcfg->threadphoton+min(idx,gcfg->oddphotons-1)+(int)f.ndone)]);
-                                GPUDEBUG(("atomic write to [%d] %e, w=%f\n",idx1d,tmp0*replayweight[(idx*gcfg->threadphoton+min(idx,gcfg->oddphotons-1)+(int)f.ndone)],p.w));
+			        if(mcxsource!=MCX_SRC_PATTERN && mcxsource!=MCX_SRC_PATTERN3D){
+				    float oldval=atomicadd(& field[idx1d+tshift*gcfg->dimlen.z], tmp0*replayweight[(idx*gcfg->threadphoton+min(idx,gcfg->oddphotons-1)+(int)f.ndone)]);
+				        if(oldval>MAX_ACCUM){
+					    if(atomicadd(& field[idx1d+tshift*gcfg->dimlen.z], -oldval)<0.f)
+					        atomicadd(& field[idx1d+tshift*gcfg->dimlen.z], oldval);
+					    else
+					        atomicadd(& field[idx1d+tshift*gcfg->dimlen.z+gcfg->dimlen.w], oldval);
+					}
+				}else{
+				    for(int i=0;i<gcfg->srcnum;i++){
+		                        for(int j=0;j<gcfg->detpnum;j++){ // for now pattern detection replay only supports pattern sources
+					    if(ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i*gcfg->detpnum+j]>0.f){
+					        float oldval=atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], tmp0*
+						    replayweight[(idx*gcfg->threadphoton+min(idx,gcfg->oddphotons-1)+(int)f.ndone)]*ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i*gcfg->detpnum+j]);
+				                    if(oldval>MAX_ACCUM){
+				                        if(atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], -oldval)<0.f)
+				                            atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], oldval);
+			                                else
+			                                    atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j+gcfg->dimlen.w], oldval);
+						    }
+					    }
+					}
+				    }
+				}
+				GPUDEBUG(("atomic write to [%d] %e, w=%f\n",idx1d,tmp0*replayweight[(idx*gcfg->threadphoton+min(idx,gcfg->oddphotons-1)+(int)f.ndone)],p.w));// debug is not supported in photon sharing
                             }
 #endif
                        }
