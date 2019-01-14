@@ -32,16 +32,18 @@ detpattern=zeros(4,2,2);     % for pattern detection, also use a 2x2 pattern
 %% forward simulation for fully illuminated src and det pattern
 clear cfg
 
-cfg.nphoton=1e8;
+cfg.nphoton=3e8;
 cfg.vol=uint8(ones(60,60,60));
 cfg.srctype='pattern';
-cfg.srcnum=1;
+cfg.srcnum=1; %for base simulation, always use 1 srcpattern
 cfg.srcpos=[10 10 0];
 cfg.issrcfrom0=1; %necessary flag
 cfg.srcdir=[0 0 1];
 cfg.srcparam1=srcparam1;
 cfg.srcparam2=srcparam2;
-cfg.srcpattern=srcpattern;ones(cfg.srcnum,cfg.srcparam1(4),cfg.srcparam2(4));
+% srcnum>1, use ones as the base simulation; srcunm=1, use itself for the
+%base simulation
+cfg.srcpattern=ones(cfg.srcnum,cfg.srcparam1(4),cfg.srcparam2(4));
 cfg.gpuid=4;
 cfg.autopilot=1;
 cfg.prop=[0 0 1 1;0.005 1 0 1.37];
@@ -66,14 +68,16 @@ cfg.unitinmm=1;
 %% jacobian for multi src and det patterns
 newcfg=cfg;
 newcfg.srcpattern=srcpattern;
-newcfg.srcnum=4;
+newcfg.srcnum=size(newcfg.srcpattern,1);
 newcfg.detpattern=detpattern;
 newcfg.seed=newseeds;
 newcfg.outputtype='jacobian';
 newcfg.detphotons=newdetpdata;
 newcfg.replaydetidx=replaydetidx;
-% load("newcfg_test.mat");
+
+%% run replay simulation
 [flux2,detp2,vol2,seeds2]=mcxlab(newcfg);
+
 %% data visualization
 detpnum=size(newcfg.detpattern,1);
 for i=0:(newcfg.srcnum-1)
@@ -83,9 +87,11 @@ for i=0:(newcfg.srcnum-1)
             figure;
         end
         subplot(2,2,mod(i*detpnum+j,4)+1);
-        hs=slice(log10(abs(double(jac))),[1 60],[1 60],[1,60]);
+        hs=slice(log10(abs(double(jac))),[],[],[1,60]);
         set(hs,'linestyle','none');
         axis equal; colorbar;box on;
         title(['jacobian(wl) of src#',num2str(i+1),' det#',num2str(j+1)]);
+%         figure;imagesc(log10(abs(squeeze(jac(15,:,:))))');view([0,0,-1]);title(['at
+%         x=15']); %compare vertical crossection
     end
 end
