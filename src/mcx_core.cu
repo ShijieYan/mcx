@@ -2179,15 +2179,13 @@ is more than what your have specified (%d), please use the -H option to specify 
 	       }else{
 	           scale[0]=0.f;
 	           float* kahanc=(float*)calloc(cfg->srcnum*cfg->detpnum,sizeof(float));
-	           if((cfg->srctype==MCX_SRC_PATTERN || cfg->srctype==MCX_SRC_PATTERN3D)){ // replay normalizor for multiple s-d pairs
-		       int j;
-		       for(iter=0;iter<(int)cfg->nphoton;iter++)
-		           for(size_t i=0;i<cfg->srcnum;i++)
-		               for(j=0;j<(int)cfg->detpnum;j++)
-			           mcx_kahanSum(&scale[i*cfg->detpnum+j],&kahanc[i*cfg->detpnum+j],cfg->replay.weight[iter]*
-				       (cfg->srcnum > 1 ? cfg->srcpattern[cfg->replaysrcidx[iter]*cfg->srcnum+i] : 1)* 
-				       ((cfg->detpattern)? cfg->detpattern[cfg->replaydetidx[iter]*cfg->detpnum+j] : 1)); 
-		   }
+	           int j;
+	           for(iter=0;iter<(int)cfg->nphoton;iter++)
+	               for(size_t i=0;i<cfg->srcnum;i++)
+	                   for(j=0;j<(int)cfg->detpnum;j++)
+		               mcx_kahanSum(&scale[i*cfg->detpnum+j],&kahanc[i*cfg->detpnum+j],cfg->replay.weight[iter]*
+			           (cfg->srcnum > 1 ? cfg->srcpattern[cfg->replaysrcidx[iter]*cfg->srcnum+i] : 1)* 
+			           ((cfg->detpattern)? cfg->detpattern[cfg->replaydetidx[iter]*cfg->detpnum+j] : 1)); 
 		   free(kahanc);
 	           for(size_t i=0;i<cfg->srcnum;i++){
 		       for(iter=0;iter<(int)cfg->detpnum;iter++){
