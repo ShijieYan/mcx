@@ -673,23 +673,17 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
 		          if(gcfg->srcnum<=1){
 			      p->w=srcpattern[(int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w)];
 			      ppath[3]=p->w;
-			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0){ // for now pattern detector replay only supports pattern source
-			          for(int i=0;i<gcfg->detpnum;i++){
-				      ppath[i+3]=p->w*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+i];
-				  }
-			      }
+			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0) // for now pattern detector replay only supports pattern source
+			          for(int j=0;j<gcfg->detpnum;j++)
+				      ppath[gcfg->srcnum+j+3]=detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
 			  }else{
 		              if(gcfg->seed==SEED_FROM_FILE) // save launch position for pattern source photon sharing replay
 			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=(uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);			      			      
-			      for(int i=0;i<gcfg->srcnum;i++){
-			          if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0){
-				      float srcw=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
-				      for(int j=0;j<gcfg->detpnum;j++)
-				          ppath[i*gcfg->detpnum+j+3]=srcw*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
-				  }else{
-				      ppath[i+3]=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
-				  }
-			      }
+			      for(int i=0;i<gcfg->srcnum;i++)
+			          ppath[i+3]=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
+			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0)
+				  for(int j=0;j<gcfg->detpnum;j++)
+				      ppath[gcfg->srcnum+j+3]=detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
 			      p->w=1.f;
                           }
 		      }else if(gcfg->srctype==MCX_SRC_PATTERN3D){
@@ -697,25 +691,18 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
 		              p->w=srcpattern[(int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
 		                              (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x)];
 			      ppath[3]=p->w;
-			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0){
-			          for(int i=0;i<gcfg->detpnum;i++){
-				      ppath[i+3]=p->w*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+i];
-				  }
-			      }			      
+			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0)
+			          for(int j=0;j<gcfg->detpnum;j++)
+				      ppath[gcfg->srcnum+j+3]=detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
 			  }else{
 		              if(gcfg->seed==SEED_FROM_FILE) // save launch position for pattern source photon sharing replay
 			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=(uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);			      		      			  
-		              for(int i=0;i<gcfg->srcnum;i++){
-			          if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0){
-				      float srcw=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
-				          (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x))*gcfg->srcnum+i];
-				      for(int j=0;j<gcfg->detpnum;j++)
-				          ppath[i*gcfg->detpnum+j+3]=srcw*detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
-				  }else{
-				      ppath[i+3]=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
-		                              (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x))*gcfg->srcnum+i];
-				  }
-			      }
+		              for(int i=0;i<gcfg->srcnum;i++)
+			          ppath[i+3]=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
+				      (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x))*gcfg->srcnum+i];
+			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0)
+			          for(int j=0;j<gcfg->detpnum;j++)
+				      ppath[gcfg->srcnum+j+3]=detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
 			      p->w=1.f;
 			  }
 		      }else if(gcfg->srctype==MCX_SRC_FOURIER)
@@ -1022,8 +1009,8 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
      float *ppath=(float *)(sharedmem+blockDim.x*(gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)));
 
 #ifdef  SAVE_DETECTORS
-     ppath+=threadIdx.x*(gcfg->maxmedia*(2+gcfg->ismomentum)+ 3 + gcfg->srcnum*gcfg->detpnum); // block#2: maxmedia*thread number to store the partial
-     if(gcfg->savedet) clearpath(ppath,gcfg->maxmedia*(2+gcfg->ismomentum)+ 3 + gcfg->srcnum*gcfg->detpnum);
+     ppath+=threadIdx.x*(gcfg->maxmedia*(2+gcfg->ismomentum)+ 3 + gcfg->srcnum + (gcfg->detpsize>0?gcfg->detpnum:0)); // block#2: maxmedia*thread number to store the partial
+     if(gcfg->savedet) clearpath(ppath,gcfg->maxmedia*(2+gcfg->ismomentum)+ 3 + gcfg->srcnum + (gcfg->detpsize>0?gcfg->detpnum:0));
      ppath[gcfg->maxmedia*(2+gcfg->ismomentum)]  =genergy[idx<<1];
      ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+1]=genergy[(idx<<1)+1];
 #endif
@@ -1124,24 +1111,24 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
                             }else{
 			        if(mcxsource!=MCX_SRC_PATTERN && mcxsource!=MCX_SRC_PATTERN3D){
 				    float oldval=atomicadd(& field[idx1d+tshift*gcfg->dimlen.z], tmp0*replayweight[(idx*gcfg->threadphoton+min(idx,gcfg->oddphotons-1)+(int)f.ndone)]);
-				        if(oldval>MAX_ACCUM){
-					    if(atomicadd(& field[idx1d+tshift*gcfg->dimlen.z], -oldval)<0.f)
-					        atomicadd(& field[idx1d+tshift*gcfg->dimlen.z], oldval);
-					    else
-					        atomicadd(& field[idx1d+tshift*gcfg->dimlen.z+gcfg->dimlen.w], oldval);
-					}
+				    if(oldval>MAX_ACCUM){
+				        if(atomicadd(& field[idx1d+tshift*gcfg->dimlen.z], -oldval)<0.f)
+					    atomicadd(& field[idx1d+tshift*gcfg->dimlen.z], oldval);
+					else
+					    atomicadd(& field[idx1d+tshift*gcfg->dimlen.z+gcfg->dimlen.w], oldval);
+				    }
 				}else{
 				    for(int i=0;i<gcfg->srcnum;i++){
 		                        for(int j=0;j<gcfg->detpnum;j++){ // for now pattern detection replay only supports pattern sources
-					    if(ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i*gcfg->detpnum+j]>0.f){
-					        float oldval=atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], tmp0*
-						    replayweight[(idx*gcfg->threadphoton+min(idx,gcfg->oddphotons-1)+(int)f.ndone)]*ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i*gcfg->detpnum+j]);
-				                    if(oldval>MAX_ACCUM){
-				                        if(atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], -oldval)<0.f)
-				                            atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], oldval);
-			                                else
-			                                    atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j+gcfg->dimlen.w], oldval);
-						    }
+					    if(ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]>0.f && (gcfg->detpsize>0 ? (ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+gcfg->srcnum+j]>0.f):1)){
+					        float oldval=atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], tmp0*replayweight[(idx*gcfg->threadphoton+min(idx,gcfg->oddphotons-1)+(int)f.ndone)]*
+						    ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]*(gcfg->detpsize>0 ? ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+gcfg->srcnum+j]:1));
+						if(oldval>MAX_ACCUM){
+						    if(atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], -oldval)<0.f)
+						        atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], oldval);
+						    else
+						        atomicadd(& field[(idx1d+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j+gcfg->dimlen.w], oldval);
+						}
 					    }
 					}
 				    }
@@ -1257,18 +1244,33 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 			    atomicadd(& field[idx1dold+tshift*gcfg->dimlen.z+gcfg->dimlen.w], oldval);
 		      }
 		  }else{
-		      for(int i=0;i<gcfg->srcnum;i++){
-		          for(int j=0;j<gcfg->detpnum;j++){ // pattern detection replay
-			      if(ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i*gcfg->detpnum+j]>0.f){
-				float oldval=atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], weight*ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i*gcfg->detpnum+j]);
-				if(oldval>MAX_ACCUM){
-				    if(atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], -oldval)<0.f)
-				      atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], oldval);
-			            else
-			              atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j+gcfg->dimlen.w], oldval);
-				}
+		      if(gcfg->detpsize>0){ // replay mode for pattern detections
+		          for(int i=0;i<gcfg->srcnum;i++){
+			      for(int j=0;j<gcfg->detpnum;j++){ // pattern detection replay
+			          if(ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]>0.f && ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+gcfg->srcnum+j]>0.f){
+				      float oldval=atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], weight*
+				          ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]*ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+gcfg->srcnum+j]);
+				      if(oldval>MAX_ACCUM){
+				          if(atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], -oldval)<0.f)
+					      atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j], oldval);
+					  else
+					      atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum*gcfg->detpnum+i*gcfg->detpnum+j+gcfg->dimlen.w], oldval);
+				      }
+				  }
 			      }
 			  }
+		      }else{ // forward sharing is faster if separated pattern detections replay
+		          for(int i=0;i<gcfg->srcnum;i++){
+			      if(ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]>0.f){
+			          float oldval=atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum+i], weight*ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]);    
+				  if(oldval>MAX_ACCUM){
+				      if(atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum+i], -oldval)<0.f)
+				          atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum+i], oldval);
+				      else
+				          atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum+i+gcfg->dimlen.w], oldval);
+				  }
+			      }
+		          }
 		      }
 		  }
                   GPUDEBUG(("atomic write to [%d] %e, w=%f\n",idx1dold,weight,p.w));
@@ -1910,7 +1912,7 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
 
 	 The calculation of the energy conservation will only reflect the last simulation.
      */
-     sharedbuf=gpu[gpuid].autoblock*(cfg->issaveseed*(RAND_BUF_LEN*sizeof(RandType))+sizeof(float)*((cfg->medianum-1)*(2+(cfg->ismomentum>0))+3+cfg->srcnum*cfg->detpnum));
+     sharedbuf=gpu[gpuid].autoblock*(cfg->issaveseed*(RAND_BUF_LEN*sizeof(RandType))+sizeof(float)*((cfg->medianum-1)*(2+(cfg->ismomentum>0))+3+cfg->srcnum+((cfg->detpattern)?cfg->detpnum:0)));
 
      MCX_FPRINTF(cfg->flog,"requesting %d bytes of shared memory\n",sharedbuf);
 
