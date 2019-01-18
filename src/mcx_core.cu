@@ -673,37 +673,37 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
 		          if(gcfg->srcnum<=1){
 			      p->w=srcpattern[(int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w)];
 			      ppath[3]=p->w;
-			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0) // for now pattern detector replay only supports pattern source
-			          for(int j=0;j<gcfg->detpnum;j++)
-				      ppath[gcfg->srcnum+j+3]=detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
 			  }else{
-		              if(gcfg->seed==SEED_FROM_FILE) // save launch position for pattern source photon sharing replay
-			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=(uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);			      			      
 			      for(int i=0;i<gcfg->srcnum;i++)
 			          ppath[i+3]=srcpattern[((int)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w))*gcfg->srcnum+i];
-			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0)
-				  for(int j=0;j<gcfg->detpnum;j++)
-				      ppath[gcfg->srcnum+j+3]=detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
 			      p->w=1.f;
                           }
+			  if(gcfg->seed==SEED_FROM_FILE){ // replay mode
+			      if(gcfg->srcnum>1)
+			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=
+				      (uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);     
+			      if(gcfg->detpsize>0)
+			          for(int j=0;j<gcfg->detpnum;j++)
+				      ppath[gcfg->srcnum+j+3]=detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
+			  }
 		      }else if(gcfg->srctype==MCX_SRC_PATTERN3D){
 		          if(gcfg->srcnum<=1){
 		              p->w=srcpattern[(int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
 		                              (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x)];
 			      ppath[3]=p->w;
-			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0)
-			          for(int j=0;j<gcfg->detpnum;j++)
-				      ppath[gcfg->srcnum+j+3]=detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
 			  }else{
-		              if(gcfg->seed==SEED_FROM_FILE) // save launch position for pattern source photon sharing replay
-			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=(uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);			      		      			  
 		              for(int i=0;i<gcfg->srcnum;i++)
 			          ppath[i+3]=srcpattern[((int)(rz*JUST_BELOW_ONE*gcfg->srcparam1.z)*(int)(gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+
 				      (int)(ry*JUST_BELOW_ONE*gcfg->srcparam1.y)*(int)(gcfg->srcparam1.x)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.x))*gcfg->srcnum+i];
-			      if(gcfg->seed==SEED_FROM_FILE && gcfg->detpsize>0)
+			      p->w=1.f;
+			  }
+			  if(gcfg->seed==SEED_FROM_FILE){
+			      if(gcfg->srcnum>1)
+			          replaysrcidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]=
+				      (uint)(ry*JUST_BELOW_ONE*gcfg->srcparam2.w)*(int)(gcfg->srcparam1.w)+(int)(rx*JUST_BELOW_ONE*gcfg->srcparam1.w);
+			      if(gcfg->detpsize>0)
 			          for(int j=0;j<gcfg->detpnum;j++)
 				      ppath[gcfg->srcnum+j+3]=detpattern[replaydetidx[threadid*gcfg->threadphoton+min(threadid,gcfg->oddphotons-1)+max(0,(int)f->ndone+1)]*gcfg->detpnum+j];
-			      p->w=1.f;
 			  }
 		      }else if(gcfg->srctype==MCX_SRC_FOURIER)
 			  p->w=(cosf((floorf(gcfg->srcparam1.w)*rx+floorf(gcfg->srcparam2.w)*ry
@@ -1259,7 +1259,7 @@ kernel void mcx_main_loop(uint media[],float field[],float genergy[],uint n_seed
 				  }
 			      }
 			  }
-		      }else{ // forward sharing is faster if separated pattern detections replay
+		      }else{
 		          for(int i=0;i<gcfg->srcnum;i++){
 			      if(ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]>0.f){
 			          float oldval=atomicadd(& field[(idx1dold+tshift*gcfg->dimlen.z)*gcfg->srcnum+i], weight*ppath[gcfg->maxmedia*(2+gcfg->ismomentum)+3+i]);    
