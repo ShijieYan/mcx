@@ -743,9 +743,9 @@ void mcx_replay_prep(Config *cfg){
             cfg->replay.detid[cfg->nphoton]=(int)(detps[i*dimdetps[0]]);
 	    if(cfg->replaydetidx)
 	        cfg->replaydetidx[cfg->nphoton]=cfg->replaydetidx[i];
-            for(j=2;j<cfg->medianum+1;j++){
-                cfg->replay.weight[cfg->nphoton]*=expf(-cfg->prop[j-1].mua*detps[i*dimdetps[0]+j]*cfg->unitinmm);
-                cfg->replay.tof[cfg->nphoton]+=detps[i*dimdetps[0]+j]*cfg->unitinmm*R_C0*cfg->prop[j-1].n;
+            for(j=0;j<cfg->medianum-1;j++){
+                cfg->replay.weight[cfg->nphoton]*=expf(-cfg->prop[j+1].mua*detps[i*dimdetps[0]+cfg->medianum+j]*cfg->unitinmm);
+                cfg->replay.tof[cfg->nphoton]+=detps[i*dimdetps[0]+cfg->medianum+j]*cfg->unitinmm*R_C0*cfg->prop[j+1].n;
             }
             if(cfg->replay.tof[cfg->nphoton]<cfg->tstart || cfg->replay.tof[cfg->nphoton]>cfg->tend) /*need to consider -g*/
                 continue;
