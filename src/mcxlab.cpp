@@ -455,7 +455,21 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
     GET_VEC3_FIELD(cfg,crop1)
     GET_VEC4_FIELD(cfg,srcparam1)
     GET_VEC4_FIELD(cfg,srcparam2)
-    else if(strcmp(name,"vol")==0){
+    else if(strcmp(name,"mua")==0){
+	if(mxIsSingle(item) && mxGetNumberOfDimensions(item)==3){
+	    dimtype dimxyz=mxGetNumberOfElements(item);
+	    if(cfg->mua) free(cfg->mua);
+		cfg->mua=(float *)malloc(dimxyz*sizeof(float));
+	    float *val=(float *)mxGetPr(item);
+	    for (i=0;i<dimxyz;i++){
+		if(val[i]>=0) 
+		    cfg->mua[i]=val[i];
+		else
+		    mexErrMsgTxt("the 'mua' field contains negative values, not acceptable to MCX");
+	    }
+	}else
+	    mexErrMsgTxt("the 'mua' field must be a 3D single-precision array");
+    }else if(strcmp(name,"vol")==0){
         dimtype dimxyz;
         cfg->mediabyte=0;
         arraydim=mxGetDimensions(item);
@@ -911,6 +925,8 @@ void mcx_validate_config(Config *cfg){
 	    }
         }
      }
+     if(cfg->mua && cfg->mediabyte<=4) 
+         cfg->mediabyte=3;
      if((cfg->mediabyte==MEDIA_AS_F2H || cfg->mediabyte==MEDIA_MUA_FLOAT || cfg->mediabyte==MEDIA_AS_HALF) && cfg->medianum<2)
          mexErrMsgTxt("the 'prop' field must contain at least 2 rows for the requested media format");
      if((cfg->mediabyte==MEDIA_ASGN_BYTE || cfg->mediabyte==MEDIA_AS_SHORT) && cfg->medianum<3)

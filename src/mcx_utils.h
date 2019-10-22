@@ -160,6 +160,7 @@ typedef struct MCXConfig{
 	int gpuid;                    /**<the ID of the GPU to use, starting from 1, 0 for auto*/
 
 	unsigned int *vol;            /**<pointer to the volume*/
+	float *mua;
 	char session[MAX_SESSION_LENGTH]; /**<session id, a string*/
 	char isrowmajor;             /**<1 for C-styled array in vol, 0 for matlab-styled array*/
 	char isreflect;              /**<1 for reflecting photons at boundary,0 for exiting*/

@@ -208,6 +208,7 @@ void mcx_initcfg(Config *cfg){
      cfg->prop=NULL;
      cfg->detpos=NULL;
      cfg->vol=NULL;
+     cfg->mua=NULL;
      cfg->session[0]='\0';
      cfg->printnum=0;
      cfg->minenergy=0.f;
@@ -306,6 +307,8 @@ void mcx_clearcfg(Config *cfg){
      	free(cfg->detpos);
      if(cfg->dim.x && cfg->dim.y && cfg->dim.z)
         free(cfg->vol);
+     if(cfg->mua)
+	free(cfg->mua);
      if(cfg->srcpattern)
      	free(cfg->srcpattern);
      if(cfg->replay.weight)

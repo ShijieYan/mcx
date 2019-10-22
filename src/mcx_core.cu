@@ -462,10 +462,13 @@ __device__ inline float reflectcoeff(MCXdir *v, float n1, float n2, int flipdir)
  * @param[in] mediaid: the media ID (32 bit) of the current voxel, format is specified in gcfg->mediaformat or cfg->mediabyte
  */
  
-__device__ void updateproperty(Medium *prop, unsigned int mediaid){
-	  if(gcfg->mediaformat<=4)
+__device__ void updateproperty(Medium *prop, unsigned int mediaid, float *mua, uint idx1d){
+	  if(gcfg->mediaformat<=4){
 	      *((float4*)(prop))=gproperty[mediaid & MED_MASK];
-          else if(gcfg->mediaformat==MEDIA_MUA_FLOAT){
+	      if(gcfg->mediaformat==3 && idx1d!=OUTSIDE_VOLUME_MIN && idx1d!=OUTSIDE_VOLUME_MAX){
+	          prop->mua=fabs(mua[idx1d]);
+	      }
+          }else if(gcfg->mediaformat==MEDIA_MUA_FLOAT){
 	      prop->mua=fabs(*((float *)&mediaid));
               prop->n=gproperty[!(mediaid & MED_MASK)==0].w;
 	  }else if(gcfg->mediaformat==MEDIA_AS_F2H||gcfg->mediaformat==MEDIA_AS_HALF){
@@ -538,7 +541,7 @@ __device__ float getrefractiveidx(unsigned int mediaid){
  * @return the reflection coefficient R=(Rs+Rp)/2, Rs: R of the perpendicularly polarized light, Rp: parallelly polarized light
  */
 
-__device__ inline int skipvoid(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,uint media[]){
+__device__ inline int skipvoid(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,uint media[],float mua[]){
       int count=1,idx1d;
       while(1){
           if(p->x>=0.f && p->y>=0.f && p->z>=0.f && p->x < gcfg->maxidx.x
@@ -569,7 +572,7 @@ __device__ inline int skipvoid(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,uint me
 		    }
 		}
                 f->t= (gcfg->voidtime) ? f->t : 0.f;
-                updateproperty((Medium *)&htime,media[idx1d]);
+                updateproperty((Medium *)&htime,media[idx1d],mua,idx1d);
 		if(gcfg->isspecular && htime.w!=gproperty[0].w){
 	            p->w*=1.f-reflectcoeff(v, gproperty[0].w,htime.w,flipdir);
                     GPUDEBUG(("transmitted intensity w=%e\n",p->w));
@@ -692,7 +695,7 @@ template <const int isinternal, const  int isreflect, const int issavedet>
 __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,Medium *prop,uint *idx1d, OutputType *field,
            uint *mediaid,OutputType *w0,uint isdet, float ppath[],float n_det[],uint *dpnum,
 	   RandType t[RAND_BUF_LEN],RandType photonseed[RAND_BUF_LEN],
-	   uint media[],float srcpattern[],int threadid,RandType rngseed[],RandType seeddata[],float gdebugdata[],volatile int gprogress[]){
+	   uint media[], float mua[], float srcpattern[],int threadid,RandType rngseed[],RandType seeddata[],float gdebugdata[],volatile int gprogress[]){
       *w0=1.f;     ///< reuse to count for launchattempt
       int canfocus=1; ///< non-zero: focusable, zero: not focusable
       *rv=float3(gcfg->ps.x,gcfg->ps.y,gcfg->ps.z); ///< reuse as the origin of the src, needed for focusable sources
@@ -994,7 +997,7 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
            */
 	  if(!isinternal){
 	      if((*mediaid & MED_MASK)==0){
-		 int idx=skipvoid(p, v, f, rv, media); /** specular reflection of the bbx is taken care of here*/
+		 int idx=skipvoid(p, v, f, rv, media, mua); /** specular reflection of the bbx is taken care of here*/
 		 if(idx>=0){
 		     *idx1d=idx;
 		     *mediaid=media[*idx1d];
@@ -1015,7 +1018,7 @@ __device__ inline int launchnewphoton(MCXpos *p,MCXdir *v,MCXtime *f,float3* rv,
        * Now a photon is successfully launched, perform necssary initialization for a new trajectory
        */
       f->ndone++;
-      updateproperty(prop,*mediaid);
+      updateproperty(prop,*mediaid,mua,*idx1d);
       if(gcfg->debuglevel & MCX_DEBUG_MOVE)
           savedebugdata(p,(uint)f->ndone+threadid*gcfg->threadphoton+umin(threadid,(threadid<gcfg->oddphotons)*threadid),gdebugdata);
 
@@ -1091,7 +1094,7 @@ kernel void mcx_test_rng(OutputType field[],uint n_seed[]){
  */
 
 template <const int isinternal,const  int isreflect, const int issavedet>
-kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n_seed[],
+kernel void mcx_main_loop(uint media[], float mua[], OutputType field[],float genergy[],uint n_seed[],
      float4 n_pos[],float4 n_dir[],float4 n_len[],float n_det[], uint detectedphoton[], 
      float srcpattern[],float replayweight[],float photontof[],int photondetid[], 
      RandType *seeddata,float *gdebugdata,volatile int *gprogress){
@@ -1133,7 +1136,7 @@ kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n
      gpu_rng_init(t,n_seed,idx);
 
      if(launchnewphoton<isinternal,isreflect,issavedet>(&p,&v,&f,&rv,&prop,&idx1d,field,&mediaid,&w0,0,ppath,
-       n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),media,srcpattern,
+       n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),media,mua,srcpattern,
        idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress)){
          GPUDEBUG(("thread %d: fail to launch photon\n",idx));
 	 n_pos[idx]=*((float4*)(&p));
@@ -1250,7 +1253,7 @@ kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n
 
           /** Read the optical property of the current voxel */
           n1=prop.n;
-	  updateproperty(&prop,mediaid);
+	  updateproperty(&prop,mediaid,mua,idx1d);
 
 	  /** Advance photon 1 step to the next voxel */
 	  len=(gcfg->faststep) ? gcfg->minstep : hitgrid((float3*)&p,(float3*)&v,&(htime.x),&rv.x,&flipdir); // propagate the photon to the first intersection to the grid
@@ -1406,7 +1409,7 @@ kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n
               GPUDEBUG(("direct relaunch at idx=[%d] mediaid=[%d], ref=[%d] bcflag=%d timegate=%d\n",idx1d,mediaid,gcfg->doreflect,isdet,f.t>gcfg->twin1));
 	      if(launchnewphoton<isinternal,isreflect,issavedet>(&p,&v,&f,&rv,&prop,&idx1d,field,&mediaid,&w0,(mediaidold & DET_MASK),ppath,
 	          n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),
-		  media,srcpattern,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
+		  media,mua,srcpattern,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
                    break;
               isdet=mediaid & DET_MASK;
               mediaid &= MED_MASK;
@@ -1421,7 +1424,7 @@ kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n
                    GPUDEBUG(("relaunch after Russian roulette at idx=[%d] mediaid=[%d], ref=[%d]\n",idx1d,mediaid,gcfg->doreflect));
                    if(launchnewphoton<isinternal,isreflect,issavedet>(&p,&v,&f,&rv,&prop,&idx1d,field,&mediaid,&w0,(mediaidold & DET_MASK),ppath,
 	                n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),
-			media,srcpattern,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
+			media,mua,srcpattern,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
                         break;
                    isdet=mediaid & DET_MASK;
                    mediaid &= MED_MASK;
@@ -1435,7 +1438,7 @@ kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n
 	          float Rtotal=1.f;
 	          float cphi,sphi,stheta,ctheta,tmp0,tmp1;
 
-                  updateproperty(&prop,mediaid); ///< optical property across the interface  
+                  updateproperty(&prop,mediaid,mua,idx1d); ///< optical property across the interface  
 
                   tmp0=n1*n1;
                   tmp1=prop.n*prop.n;
@@ -1459,7 +1462,7 @@ kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n
                             GPUDEBUG(("transmit to air, relaunch\n"));
 		    	    if(launchnewphoton<isinternal,isreflect,issavedet>(&p,&v,&f,&rv,&prop,&idx1d,field,&mediaid,&w0,(mediaidold & DET_MASK),
 			        ppath,n_det,detectedphoton,t,(RandType*)(sharedmem+threadIdx.x*gcfg->issaveseed*RAND_BUF_LEN*sizeof(RandType)),
-				media,srcpattern,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
+				media,mua,srcpattern,idx,(RandType*)n_seed,seeddata,gdebugdata,gprogress))
                                 break;
                             isdet=mediaid & DET_MASK;
                             mediaid &= MED_MASK;
@@ -1479,7 +1482,7 @@ kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n
 	                GPUDEBUG(("ref p_new=[%f %f %f] v_new=[%f %f %f]\n",p.x,p.y,p.z,v.x,v.y,v.z));
                 	idx1d=idx1dold;
 		 	mediaid=(media[idx1d] & MED_MASK);
-        	  	updateproperty(&prop,mediaid); ///< optical property across the interface
+        	  	updateproperty(&prop,mediaid,mua,idx1d); ///< optical property across the interface
                   	n1=prop.n;
 		  }
 	      }
@@ -1664,6 +1667,7 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
      int dimxyz=cfg->dim.x*cfg->dim.y*cfg->dim.z*((cfg->srctype==MCX_SRC_PATTERN || cfg->srctype==MCX_SRC_PATTERN3D) ? cfg->srcnum : 1);
 
      uint  *media=(uint *)(cfg->vol);
+     float *mua=(float *)(cfg->mua);
      float  *field;
      float4 *Ppos,*Pdir,*Plen,*Plen0;
      uint   *Pseed;
@@ -1676,6 +1680,7 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
      cudaEvent_t updateprogress;
 
      uint *gmedia;
+     float *gmua;
      float4 *gPpos,*gPdir,*gPlen;
      uint   *gPseed,*gdetected;
      int    *greplaydetid=NULL;
@@ -1892,6 +1897,8 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
          Pseed=(uint*)malloc(sizeof(RandType)*cfg->nphoton*RAND_BUF_LEN);
 
      CUDA_ASSERT(cudaMalloc((void **) &gmedia, sizeof(uint)*(cfg->dim.x*cfg->dim.y*cfg->dim.z)));
+     if(cfg->mua)
+         CUDA_ASSERT(cudaMalloc((void **) &gmua, sizeof(float)*(cfg->dim.x*cfg->dim.y*cfg->dim.z)));
      //CUDA_ASSERT(cudaBindTexture(0, texmedia, gmedia));
      CUDA_ASSERT(cudaMalloc((void **) &gfield, sizeof(OutputType)*fieldlen*SHADOWCOUNT));
      CUDA_ASSERT(cudaMalloc((void **) &gPpos, sizeof(float4)*gpu[gpuid].autothread));
@@ -1999,6 +2006,8 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
      mcx_flush(cfg);
 
      CUDA_ASSERT(cudaMemcpy(gmedia, media, sizeof(uint)*cfg->dim.x*cfg->dim.y*cfg->dim.z, cudaMemcpyHostToDevice));
+     if(cfg->mua)
+         CUDA_ASSERT(cudaMemcpy(gmua, mua, sizeof(float)*cfg->dim.x*cfg->dim.y*cfg->dim.z, cudaMemcpyHostToDevice));
      CUDA_ASSERT(cudaMemcpy(genergy,energy,sizeof(float) *(gpu[gpuid].autothread<<1), cudaMemcpyHostToDevice));
      if(cfg->srcpattern)
         if(cfg->srctype==MCX_SRC_PATTERN)
@@ -2070,14 +2079,14 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
            int isinternal=((cfg->internalsrc>0) || (param.mediaidorig && (cfg->srctype==MCX_SRC_PENCIL || cfg->srctype==MCX_SRC_CONE || cfg->srctype==MCX_SRC_ISOTROPIC)));
 
 	   switch(isinternal*100 + (cfg->isreflect>0)*10+(cfg->issavedet>0)){
-	       case 0:  mcx_main_loop<0,0,0> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
-	       case 1:  mcx_main_loop<0,0,1> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
-	       case 10: mcx_main_loop<0,1,0> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
-	       case 11: mcx_main_loop<0,1,1> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
-	       case 100:mcx_main_loop<1,0,0> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
-	       case 101:mcx_main_loop<1,0,1> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
-	       case 110:mcx_main_loop<1,1,0> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
-	       case 111:mcx_main_loop<1,1,1> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
+	       case 0:  mcx_main_loop<0,0,0> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gmua,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
+	       case 1:  mcx_main_loop<0,0,1> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gmua,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
+	       case 10: mcx_main_loop<0,1,0> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gmua,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
+	       case 11: mcx_main_loop<0,1,1> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gmua,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
+	       case 100:mcx_main_loop<1,0,0> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gmua,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
+	       case 101:mcx_main_loop<1,0,1> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gmua,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
+	       case 110:mcx_main_loop<1,1,0> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gmua,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
+	       case 111:mcx_main_loop<1,1,1> <<<mcgrid,mcblock,sharedbuf>>>(gmedia,gmua,gfield,genergy,gPseed,gPpos,gPdir,gPlen,gPdet,gdetected,gsrcpattern,greplayw,greplaytof,greplaydetid,gseeddata,gdebugdata,gprogress);break;
            }
 #pragma omp master
 {
@@ -2361,6 +2370,7 @@ is more than what your have specified (%d), please use the -H option to specify 
 #pragma omp barrier
 
      CUDA_ASSERT(cudaFree(gmedia));
+     if(cfg->mua) CUDA_ASSERT(cudaFree(gmua));
      CUDA_ASSERT(cudaFree(gfield));
      CUDA_ASSERT(cudaFree(gPpos));
      CUDA_ASSERT(cudaFree(gPdir));
