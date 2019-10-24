@@ -459,14 +459,11 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
 	if(mxIsSingle(item) && mxGetNumberOfDimensions(item)==3){
 	    dimtype dimxyz=mxGetNumberOfElements(item);
 	    if(cfg->mua) free(cfg->mua);
-		cfg->mua=(float *)malloc(dimxyz*sizeof(float));
+		cfg->mua=(float *)calloc(dimxyz,sizeof(float));
 	    float *val=(float *)mxGetPr(item);
-	    for (i=0;i<dimxyz;i++){
+	    for (i=0;i<dimxyz;i++)
 		if(val[i]>=0) 
 		    cfg->mua[i]=val[i];
-		else
-		    mexErrMsgTxt("the 'mua' field contains negative values, not acceptable to MCX");
-	    }
 	}else
 	    mexErrMsgTxt("the 'mua' field must be a 3D single-precision array");
     }else if(strcmp(name,"vol")==0){
