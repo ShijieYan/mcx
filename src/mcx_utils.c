@@ -1669,7 +1669,7 @@ void mcx_loadconfig(FILE *in, Config *cfg){
      comm=fgets(comment,MAX_PATH_LENGTH,in);
      if(in==stdin)
      	fprintf(stdout,"%d %f\n",cfg->detnum,cfg->detradius);
-     if(cfg->medianum+cfg->detnum>MAX_PROP_AND_DETECTORS)
+     if(cfg->medianum+cfg->gegenmedianum+cfg->detnum>MAX_PROP_AND_DETECTORS)
          MCX_ERROR(-4,"input media types plus detector number exceeds the maximum total (4000)");
 
      cfg->detpos=(float4*)malloc(sizeof(float4)*cfg->detnum);

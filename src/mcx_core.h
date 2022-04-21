@@ -155,6 +155,7 @@ typedef struct  __align__(16) KernelParams {
   unsigned int maxmedia;             /**< max number of media labels */
   unsigned int detnum;               /**< max number of detectors */
   unsigned int maxpolmedia;          /**< max number of media labels for polarized light */
+  unsigned int maxgegenmedia;        /**< max number of media labels for gegenbauer phase function */
   unsigned int maxgate;              /**< max number of time gates */
   unsigned int idx1dorig;            /**< pre-computed 1D index of the photon at launch for pencil/isotropic beams */
   unsigned int mediaidorig;          /**< pre-computed media index of the photon at launch for pencil/isotropic beams */
