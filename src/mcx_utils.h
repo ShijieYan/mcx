@@ -90,6 +90,17 @@ typedef struct MCXPolarizeMedium{
 } POLMedium;
 
 /**
+ * The structure to store additional parameters for the two-term Gegenbauer phase function
+ * The gegenbauer g forward (gf) is provided using g from MCXMedium struct
+ */
+typedef struct MCXGegenbauer{
+	float af;                      /**< alpha forward */
+	float gb;                      /**< gegenbauer g backward */
+	float ab;                      /**< alpha backward */
+	float c;                       /**< mixing forward and backward gegenbauer terms */
+} GegenMedium;
+
+/**
  * Header data structure in .mch/.mct files to store detected photon data 
  * This header has a total of 256 bytes
  */
