@@ -117,6 +117,11 @@ function varargout=mcxlab(varargin)
 %                      density polprop(i,3) will be adjusted to achieve the target
 %                      mus prop(i,2); 2) if prop(i,3) < 1, polprop(i,3) will be
 %                      adjusted to achieve the target mus' prop(i,2)*(1-prop(i,3))
+%      cfg.gegenprop:  an N by 4 array, each row specifies additional parameters
+%                      [af, gb, ab, c] needed for the two-term Gegenbauer
+%                      phase function simulation. The first row is type 1,
+%                      and so on.
+%                      Example: <demo_mcxlab_gegenbauer.m>
 %
 %== GPU settings ==
 %      cfg.autopilot:  1-automatically set threads and blocks, [0]-use nthread/nblocksize

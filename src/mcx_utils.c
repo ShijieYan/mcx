@@ -216,6 +216,7 @@ const char *zipformat[]={"zlib","gzip","base64","lzip","lzma","lz4","lz4hc",""};
 void mcx_initcfg(Config *cfg){
      cfg->medianum=0;
      cfg->polmedianum=0;
+     cfg->gegenmedianum=0;
      cfg->mediabyte=1;        /** expect 1-byte per medium index, use --mediabyte to set to 2 or 4 */
      cfg->detnum=0;
      cfg->dim.x=0;
@@ -239,6 +240,7 @@ void mcx_initcfg(Config *cfg){
      cfg->isgpuinfo=0;
      cfg->prop=NULL;
      cfg->polprop=NULL;
+     cfg->gegenprop=NULL;
      cfg->detpos=NULL;
      cfg->smatrix=NULL;
      cfg->vol=NULL;
@@ -349,6 +351,8 @@ void mcx_clearcfg(Config *cfg){
      	free(cfg->prop);
      if(cfg->polmedianum)
         free(cfg->polprop);
+     if(cfg->gegenprop)
+        free(cfg->gegenprop);
      if(cfg->smatrix)
         free(cfg->smatrix);
      if(cfg->detnum)
@@ -1250,8 +1254,26 @@ void mcx_preprocess(Config *cfg){
 	   isbcdet=1;
     }
 
+    if(cfg->vol && cfg->gegenprop){
+        if(!(cfg->mediabyte<=4)) MCX_ERROR(-1,"Unsupported media format");
+        if(cfg->polprop || cfg->polmedianum)
+            MCX_ERROR(-1,"Gegenbauer scattering is not compatible with polarized light simulation");
+        if(cfg->medianum!=cfg->gegenmedianum+1)
+            MCX_ERROR(-6,"number of gegenprop types does not match number of media");
+        for(int i=0;i<cfg->gegenmedianum;i++){
+            if(cfg->gegenprop[i].af<=-0.5f || cfg->gegenprop[i].ab<=-0.5f) // https://doi.org/10.1117/12.2079695
+                MCX_ERROR(-4,"The anisotropy factor alpha must be > -0.5");
+            if(cfg->gegenprop[i].gb<-1.0f || cfg->gegenprop[i].gb>1.0f)
+                MCX_ERROR(-4,"The anisotropy factor g must be between [-1.0,1.0]");
+            if(cfg->gegenprop[i].c<0.0f || cfg->gegenprop[i].c>1.0f)
+                MCX_ERROR(-4,"The mixing factor c must be between [0.0,1.0]");
+        }
+    }
+
     if(cfg->vol && cfg->polprop){
         if(!(cfg->mediabyte<=4)) MCX_ERROR(-1,"Unsupported media format");
+        if(cfg->gegenprop || cfg->polmedianum)
+            MCX_ERROR(-1,"polarized light simulation is not compatible with Gegenbauer phase function");
         if(cfg->medianum!=cfg->polmedianum+1)
             MCX_ERROR(-6,"number of particle types does not match number of media");
         if(cfg->lambda==0.f)

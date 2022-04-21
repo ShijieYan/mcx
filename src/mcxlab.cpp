@@ -700,6 +700,20 @@ void mcx_set_field(const mxArray *root,const mxArray *item,int idx, Config *cfg)
           for(i=0;i<cfg->polmedianum;i++)
              ((float *)(&cfg->polprop[i]))[j]=val[j*arraydim[0]+i];
         printf("mcx.polmedianum=%d;\n",cfg->polmedianum);
+    }else if(strcmp(name,"gegenprop")==0){
+        if(mxGetNumberOfDimensions(item)!=2)
+            mexErrMsgTxt("the 'gegenprop' field must a 2D array");
+        arraydim=mxGetDimensions(item);
+        if(arraydim[0]>0 && arraydim[1]!=4)
+            mexErrMsgTxt("the 'gegenprop' field must have 4 columns (af,gb,ab,c)");
+        double *val=mxGetPr(item);
+        cfg->gegenmedianum=arraydim[0];
+        if(cfg->gegenprop) free(cfg->gegenprop);
+        cfg->gegenprop=(GegenMedium *)malloc(cfg->gegenmedianum*sizeof(GegenMedium));
+        for(j=0;j<4;j++)
+          for(i=0;i<cfg->gegenmedianum;i++)
+             ((float *)(&cfg->gegenprop[i]))[j]=val[j*arraydim[0]+i];
+        printf("mcx.gegenmedianum=%d;\n",cfg->gegenmedianum);
     }else if(strcmp(name,"session")==0){
         int len=mxGetNumberOfElements(item);
         if(!mxIsChar(item) || len==0)

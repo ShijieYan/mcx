@@ -180,6 +180,7 @@ typedef struct MCXConfig{
 	uint3 crop1;                  /**<the other end of the caching box*/
 	unsigned int medianum;        /**<total types of media*/
         unsigned int polmedianum;     /**<total types of media for polarized photon simulation*/
+        unsigned int gegenmedianum;   /**<total types of media for gegenbauer scattering simulation*/
 	unsigned int detnum;          /**<total detector numbers*/
 	unsigned int maxdetphoton;    /**<anticipated maximum detected photons*/
 	float detradius;              /**<default detector radius*/
@@ -187,6 +188,7 @@ typedef struct MCXConfig{
 
 	Medium *prop;                 /**<optical property mapping table*/
         POLMedium *polprop;           /**<absorption and scatterer mapping table for polarized photon simulation*/
+        GegenMedium *gegenprop;       /**<additional parameters for gegenbauer scattering*/
 	float4 *detpos;               /**<detector positions and radius, overwrite detradius*/
         float4 *smatrix;              /**<scattering Mueller matrix */
 
