@@ -233,11 +233,11 @@ __device__ inline void clearpath(float *p,int maxmediatype){
 
 __device__ inline uint finddetector(MCXpos *p0){
       uint i;
-      for(i=gcfg->maxmedia+1;i<gcfg->maxmedia+gcfg->detnum+1;i++){
+      for(i=gcfg->maxmedia+gcfg->maxgegenmedia+1;i<gcfg->maxmedia+gcfg->maxgegenmedia+gcfg->detnum+1;i++){
       	if((gproperty[i].x-p0->x)*(gproperty[i].x-p0->x)+
 	   (gproperty[i].y-p0->y)*(gproperty[i].y-p0->y)+
 	   (gproperty[i].z-p0->z)*(gproperty[i].z-p0->z) < gproperty[i].w*gproperty[i].w){
-	        return i-gcfg->maxmedia;
+	        return i-gcfg->maxmedia-gcfg->maxgegenmedia;
 	   }
       }
       return 0;
@@ -1640,6 +1640,22 @@ kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n
                                theta=acosf(tmp0);
                                stheta=sinf(theta);
                                ctheta=tmp0;
+                           }else if(gcfg->maxgegenmedia){  // two-term Gegenbauer scattering function
+                               // for now keep the formulas as they are for better readablity, can be optimized later if needed
+                               float gf=gproperty[mediaid & MED_MASK].z;
+                               float af=gproperty[(mediaid & MED_MASK)+gcfg->maxgegenmedia].x;
+                               float gb=gproperty[(mediaid & MED_MASK)+gcfg->maxgegenmedia].y;
+                               float ab=gproperty[(mediaid & MED_MASK)+gcfg->maxgegenmedia].z;
+                               float rnd=rand_uniform01(t);
+                               if(rand_uniform01(t)<=gproperty[(mediaid & MED_MASK)+gcfg->maxgegenmedia].w){
+                                   // costheta = ((1+gf*gf)/(2*gf)) -powf(rnd/powf(1-gf,2*af) + (1-rnd)/powf(1+gf,2*af),-1/af)/(2*gf);
+                                   ctheta=((1.0+gf*gf)/(2.0*gf)) -powf(rnd/powf(1.0-gf,2.0*af) + (1.0-rnd)/powf(1.0+gf,2.0*af),-1.0/af)/(2.0*gf);
+                               }else{
+                                   // costheta = -(((1+gb*gb)/(2*gb)) -powf(rnd/powf(1-gb,2*ab) + (1-rnd)/powf(1+gb,2*ab),-1/ab)/(2*gb));
+                                   ctheta=-((1.0+gb*gb)/(2.0*gb)) -powf(rnd/powf(1.0-gb,2.0*ab) + (1.0-rnd)/powf(1.0+gb,2.0*ab),-1.0/ab)/(2.0*gb);
+                               }
+                               theta=acosf(ctheta);
+                               stheta=sinf(theta);
                            }else{
                                tmp0=(v.nscat > gcfg->gscatter) ? 0.f : prop.g;
                                /** Here we use Henyey-Greenstein Phase Function, "Handbook of Optical Biomedical Diagnostics",2002,Chap3,p234, also see Boas2002 */
@@ -2350,7 +2366,7 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
 		     p0,c0,s0,maxidx,uint4(0,0,0,0),cp0,cp1,uint2(0,0),cfg->minenergy,
                      cfg->sradius*cfg->sradius,minstep*R_C0*cfg->unitinmm,cfg->srctype,
 		     cfg->srcparam1,cfg->srcparam2,cfg->voidtime,cfg->maxdetphoton,
-		     cfg->medianum-1,cfg->detnum,cfg->polmedianum,cfg->maxgate,0,0,ABS(cfg->sradius+2.f)<EPS /*isatomic*/,
+		     cfg->medianum-1,cfg->detnum,cfg->polmedianum,cfg->gegenmedianum,cfg->maxgate,0,0,ABS(cfg->sradius+2.f)<EPS /*isatomic*/,
 		     (uint)cfg->maxvoidstep,cfg->issaveseed>0,(uint)cfg->issaveref,cfg->isspecular>0,
 		     cfg->maxdetphoton*hostdetreclen,cfg->seed,(uint)cfg->outputtype,0,0,cfg->faststep,
 		     cfg->debuglevel,cfg->savedetflag,hostdetreclen,partialdata,w0offset,cfg->mediabyte,
@@ -2732,7 +2748,8 @@ void mcx_run_simulation(Config *cfg,GPUInfo *gpu){
        * Copy constants to the constant memory on the GPU
        */
      CUDA_ASSERT(cudaMemcpyToSymbol(gproperty, cfg->prop,  cfg->medianum*sizeof(Medium), 0, cudaMemcpyHostToDevice));
-     CUDA_ASSERT(cudaMemcpyToSymbol(gproperty, cfg->detpos,  cfg->detnum*sizeof(float4), cfg->medianum*sizeof(Medium), cudaMemcpyHostToDevice));
+     CUDA_ASSERT(cudaMemcpyToSymbol(gproperty, cfg->gegenprop,  cfg->gegenmedianum*sizeof(GegenMedium), cfg->medianum*sizeof(Medium), cudaMemcpyHostToDevice));
+     CUDA_ASSERT(cudaMemcpyToSymbol(gproperty, cfg->detpos,  cfg->detnum*sizeof(float4), cfg->medianum*sizeof(Medium)+cfg->gegenmedianum*sizeof(GegenMedium), cudaMemcpyHostToDevice));
 
      MCX_FPRINTF(cfg->flog,"init complete : %d ms\n",GetTimeMillis()-tic);
 
