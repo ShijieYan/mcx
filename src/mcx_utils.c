@@ -1272,7 +1272,7 @@ void mcx_preprocess(Config *cfg){
 
     if(cfg->vol && cfg->polprop){
         if(!(cfg->mediabyte<=4)) MCX_ERROR(-1,"Unsupported media format");
-        if(cfg->gegenprop || cfg->polmedianum)
+        if(cfg->gegenprop)
             MCX_ERROR(-1,"polarized light simulation is not compatible with Gegenbauer phase function");
         if(cfg->medianum!=cfg->polmedianum+1)
             MCX_ERROR(-6,"number of particle types does not match number of media");
