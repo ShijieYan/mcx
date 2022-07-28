@@ -1648,11 +1648,9 @@ kernel void mcx_main_loop(uint media[],OutputType field[],float genergy[],uint n
                                float ab=gproperty[(mediaid & MED_MASK)+gcfg->maxgegenmedia].z;
                                float rnd=rand_uniform01(t);
                                if(rand_uniform01(t)<=gproperty[(mediaid & MED_MASK)+gcfg->maxgegenmedia].w){
-                                   // costheta = ((1+gf*gf)/(2*gf)) -powf(rnd/powf(1-gf,2*af) + (1-rnd)/powf(1+gf,2*af),-1/af)/(2*gf);
-                                   ctheta=((1.0+gf*gf)/(2.0*gf)) -powf(rnd/powf(1.0-gf,2.0*af) + (1.0-rnd)/powf(1.0+gf,2.0*af),-1.0/af)/(2.0*gf);
+                                   ctheta=(1.0+gf*gf)/(2.0*gf) - powf(rnd/powf(1.0-gf,2.0*af)+(1.0-rnd)/powf(1.0+gf,2.0*af),-1.0/af)/(2.0*gf);
                                }else{
-                                   // costheta = -(((1+gb*gb)/(2*gb)) -powf(rnd/powf(1-gb,2*ab) + (1-rnd)/powf(1+gb,2*ab),-1/ab)/(2*gb));
-                                   ctheta=-((1.0+gb*gb)/(2.0*gb)) -powf(rnd/powf(1.0-gb,2.0*ab) + (1.0-rnd)/powf(1.0+gb,2.0*ab),-1.0/ab)/(2.0*gb);
+                                   ctheta=-(1.0+gb*gb)/(2.0*gb) + powf(rnd/powf(1.0-gb,2.0*ab)+(1.0-rnd)/powf(1.0+gb,2.0*ab),-1.0/ab)/(2.0*gb);
                                }
                                theta=acosf(ctheta);
                                stheta=sinf(theta);
