@@ -41,6 +41,7 @@
 #include "mcx_const.h"
 #include "mcx_utils.h"
 #include "mcx_core.h"
+#include "mcx_svmc.h"
 #include "mcx_shapes.h"
 
 #ifdef _OPENMP
@@ -252,6 +253,9 @@ void mexFunction(int nlhs, mxArray* plhs[], int nrhs, const mxArray* prhs[]) {
             if (!(activedev = mcx_list_gpu(&cfg, &gpuinfo))) {
                 mexErrMsgTxt("No active GPU device found");
             }
+
+            /** Preprocess volume on GPU for SVMC simulation */
+            mcx_svmc_preprocess(&cfg, gpuinfo);
 
             /** Initialize all buffers necessary to store the output variables */
             if (nlhs >= 1) {

@@ -36,6 +36,7 @@
 #include "mcx_tictoc.h"
 #include "mcx_utils.h"
 #include "mcx_core.h"
+#include "mcx_svmc.h"
 #ifdef _OPENMP
     #include <omp.h>
 #endif
@@ -62,6 +63,11 @@ int main (int argc, char* argv[]) {
     if (!(activedev = mcx_list_gpu(&mcxconfig, &gpuinfo))) {
         mcx_error(-1, "No GPU device found\n", __FILE__, __LINE__);
     }
+
+    /**
+      * Preprocess volume on GPU for SVMC simulation
+      */
+    mcx_svmc_preprocess(&mcxconfig, gpuinfo);
 
 #ifdef _OPENMP
     /**

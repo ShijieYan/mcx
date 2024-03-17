@@ -48,6 +48,7 @@ This unit is written with CUDA-C and shall be compiled using nvcc in cuda-toolki
 #include "mcx_core.h"
 #include "mcx_tictoc.h"
 #include "mcx_const.h"
+#include "mcx_vector_math.cu"
 
 #include <cuda.h>
 #include "cuda_fp16.h"
@@ -96,73 +97,6 @@ This unit is written with CUDA-C and shall be compiled using nvcc in cuda-toolki
         #define __CUDA_ARCH_LIST__ 350
     #endif
 #endif
-
-/**
- * @brief Adding two float3 vectors c=a+b
- */
-
-__device__ float3 operator +(const float3& a, const float3& b) {
-    return make_float3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-
-/**
- * @brief Increatment a float3 vector by another float3, a+=b
- */
-
-__device__ void operator +=(float3& a, const float3& b) {
-    a.x += b.x;
-    a.y += b.y;
-    a.z += b.z;
-}
-
-/**
- * @brief Subtracting two float3 vectors c=a+b
- */
-
-__device__ float3 operator -(const float3& a, const float3& b) {
-    return make_float3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-
-/**
- * @brief Negating a float3 vector c=-a
- */
-
-__device__ float3 operator -(const float3& a) {
-    return make_float3(-a.x, -a.y, -a.z);
-}
-
-/**
- * @brief Front-multiplying a float3 with a scalar c=a*b
- */
-
-__device__ float3 operator *(const float& a, const float3& b) {
-    return make_float3(a * b.x, a * b.y, a * b.z);
-}
-
-/**
- * @brief Post-multiplying a float3 with a scalar c=a*b
- */
-
-__device__ float3 operator *(const float3& a, const float& b) {
-    return make_float3(a.x * b, a.y * b, a.z * b);
-}
-
-/**
- * @brief Multiplying two float3 vectors c=a*b
- */
-
-__device__ float3 operator *(const float3& a, const float3& b) {
-    return make_float3(a.x * b.x, a.y * b.y, a.z * b.z);
-}
-
-/**
- * @brief Dot-product of two float3 vectors c=a*b
- */
-
-__device__ float dot(const float3& a, const float3& b) {
-    return a.x * b.x + a.y * b.y + a.z * b.z;
-}
 
 /**
  * @brief Concatenated optical properties and det positions, stored in constant memory
