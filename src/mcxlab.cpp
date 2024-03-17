@@ -558,6 +558,7 @@ void mcx_set_field(const mxArray* root, const mxArray* item, int idx, Config* cf
     GET_ONE_FIELD(cfg, isref3)
     GET_ONE_FIELD(cfg, isrefint)
     GET_ONE_FIELD(cfg, isnormalized)
+    GET_ONE_FIELD(cfg, issvmc)
     GET_ONE_FIELD(cfg, isgpuinfo)
     GET_ONE_FIELD(cfg, issrcfrom0)
     GET_ONE_FIELD(cfg, autopilot)

@@ -399,7 +399,7 @@ __constant__ int8_t triangle_vertices[256][16] = {
  */
 void mcx_svmc_preprocess(Config* cfg, GPUInfo* gpu) {
     // if volume is not an 3D integer array, do nothing
-    if (cfg->mediabyte > 4) {
+    if (cfg->mediabyte > 4 || !cfg->issvmc) {
         return;
     }
 

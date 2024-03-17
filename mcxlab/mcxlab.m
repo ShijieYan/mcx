@@ -163,6 +163,7 @@ function varargout = mcxlab(varargin)
 %                      density polprop(i,3) will be adjusted to achieve the target
 %                      mus prop(i,2); 2) if prop(i,3) < 1, polprop(i,3) will be
 %                      adjusted to achieve the target mus' prop(i,2)*(1-prop(i,3))
+%      cfg.issvmc:     1-preprocess volume for SVMC simulation, [0]-do not.
 %
 % == GPU settings ==
 %      cfg.autopilot:  1-automatically set threads and blocks, [0]-use nthread/nblocksize

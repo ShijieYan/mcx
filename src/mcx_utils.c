@@ -263,6 +263,7 @@ void mcx_initcfg(Config* cfg) {
     cfg->detpos = NULL;
     cfg->smatrix = NULL;
     cfg->vol = NULL;
+    cfg->issvmc = 0;
     cfg->session[0] = '\0';
     cfg->printnum = 0;
     cfg->minenergy = 0.f;

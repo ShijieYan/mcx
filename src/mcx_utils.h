@@ -221,6 +221,7 @@ typedef struct MCXConfig {
     char issaveref;              /**<1 save diffuse reflectance at the boundary voxels, 0 do not save*/
     char ismomentum;             /**<1 to save momentum transfer for detected photons, implies issavedet=1*/
     char isdumpjson;             /**<1 to save json */
+    char issvmc;                 /**<1 to preprocess volume for svmc, 0 do not*/
     char internalsrc;            /**<1 all photons launch positions are inside non-zero voxels, 0 let mcx search entry point*/
     int  zipid;                  /**<data zip method "zlib","gzip","base64","lzip","lzma","lz4","lz4hc"*/
     char srctype;                /**<0:pencil,1:isotropic,2:cone,3:gaussian,4:planar,5:pattern,\
