@@ -595,7 +595,7 @@ __device__ void updateproperty(Medium* prop, unsigned int& mediaid, RandType t[R
         prop->mua = val.h[0] * (1.f / 65535.f) * (gproperty[2].x - gproperty[1].x) + gproperty[1].x;
         prop->mus = val.h[1] * (1.f / 65535.f) * (gproperty[2].y - gproperty[1].y) + gproperty[1].y;
         prop->n = gproperty[!(mediaid & MED_MASK) == 0].w;
-    } else if (issvmc) { //< SVMC mode [c7][c6][c5][c4] and [c3][c2][c1][c0] stored as two 4-byte records;
+    } else if (issvmc) { //< SVMC mode [c4][c5][c6][c7] and [c0][c1][c2][c3] stored as two 4-byte records;
         if (idx1d == OUTSIDE_VOLUME_MIN || idx1d == OUTSIDE_VOLUME_MAX) {
             *((float4*)(prop)) = gproperty[0]; // out-of-bounds
             return;

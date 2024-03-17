@@ -41,7 +41,7 @@
 #include "mcx_vector_math.cu"
 
 // host function signatures
-void pad_replicate_volume(unsigned int* vol, unsigned int** new_vol, unsigned int pad_size, unsigned int dimx,
+void pad_replicate_volume(unsigned int* vol, unsigned int** vol_new, unsigned int pad_size, unsigned int dimx,
                           unsigned int dimy, unsigned int dimz);
 void gaussian_filter(float** filter, unsigned int sizex, unsigned int sizey, unsigned int sizez, float std);
 void mcx_cu_assess(cudaError_t cuerr, const char* file, const int linenum);
@@ -50,7 +50,7 @@ void mcx_cu_assess(cudaError_t cuerr, const char* file, const int linenum);
 __global__ void init_lower_label(unsigned char* vol_new, unsigned int* vol);
 __global__ void create_binary_mask(unsigned int* vol, float* binary_mask, unsigned int label);
 __global__ void gaussian_blur(float* binary_mask, float* mask);
-__global__ void split_voxel(float* scalar_field, unsigned char* new_vol, unsigned int label);
+__global__ void split_voxel(float* scalar_field, unsigned char* vol_new, unsigned int label);
 __device__ float3 interpolate(float3 a, float3 b, float a_val, float b_val, float isovalue);
 __device__ unsigned int flatten_3d_to_1d(uint3 idx3d, uint3 dim);
 
@@ -490,9 +490,7 @@ void mcx_svmc_preprocess(Config* cfg, GPUInfo* gpu) {
     cfg->mediabyte = MEDIA_2LABEL_SPLIT;
 
     // adjust source position to compensate for the grid offset between mcx and svmc
-    cfg->srcpos.x += 0.5f;
-    cfg->srcpos.y += 0.5f;
-    cfg->srcpos.z += 0.5f;
+    cfg->srcpos += make_float4(0.5f, 0.5f, 0.5f, 0.0f);
 
     // TODO: adjust detector position to compensate for the grid offset between mcx and svmc
 
@@ -533,24 +531,24 @@ void mcx_svmc_preprocess(Config* cfg, GPUInfo* gpu) {
  * @brief      Pad a 3D volume by replicating values
  *
  * @param      vol       The volume
- * @param      new_vol   The new volume
+ * @param      vol_new   The new volume
  * @param[in]  pad_size  The pad size
  * @param[in]  dimx      The dimx
  * @param[in]  dimy      The dimy
  * @param[in]  dimz      The dimz
  */
-void pad_replicate_volume(unsigned int* vol, unsigned int** new_vol, unsigned int pad_size,
+void pad_replicate_volume(unsigned int* vol, unsigned int** vol_new, unsigned int pad_size,
                           unsigned int dimx, unsigned int dimy, unsigned int dimz) {
     unsigned int new_dimx = dimx + pad_size * 2;
     unsigned int new_dimy = dimy + pad_size * 2;
     unsigned int new_dimz = dimz + pad_size * 2;
-    *new_vol = (unsigned int*)calloc(new_dimx * new_dimy * new_dimz, sizeof(unsigned int));
+    *vol_new = (unsigned int*)calloc(new_dimx * new_dimy * new_dimz, sizeof(unsigned int));
 
     // copy vol values
     for (unsigned int i = 0; i < dimx; ++i) {
         for (unsigned int j = 0; j < dimy; ++j) {
             for (unsigned int k = 0; k < dimz; ++k) {
-                (*new_vol)[pad_size + i + (pad_size + j) * new_dimx + (pad_size + k) * new_dimx * new_dimy] =
+                (*vol_new)[pad_size + i + (pad_size + j) * new_dimx + (pad_size + k) * new_dimx * new_dimy] =
                     vol[i + j * dimx + k * dimx * dimy];
             }
         }
@@ -560,8 +558,8 @@ void pad_replicate_volume(unsigned int* vol, unsigned int** new_vol, unsigned in
     for (int i = static_cast<int>(pad_size) - 1; i >= 0; --i) {
         for (unsigned int j = 0; j < new_dimy; ++j) {
             for (unsigned int k = 0; k < new_dimz; ++k) {
-                (*new_vol)[i + j * new_dimx + k * new_dimx * new_dimy] =
-                    (*new_vol)[(i + 1) + j * new_dimx + k * new_dimx * new_dimy];
+                (*vol_new)[i + j * new_dimx + k * new_dimx * new_dimy] =
+                    (*vol_new)[(i + 1) + j * new_dimx + k * new_dimx * new_dimy];
             }
         }
     }
@@ -570,8 +568,8 @@ void pad_replicate_volume(unsigned int* vol, unsigned int** new_vol, unsigned in
     for (unsigned int i = new_dimx - pad_size; i < new_dimx; ++i) {
         for (unsigned int j = 0; j < new_dimy; ++j) {
             for (unsigned int k = 0; k < new_dimz; ++k) {
-                (*new_vol)[i + j * new_dimx + k * new_dimx * new_dimy] =
-                    (*new_vol)[(i - 1) + j * new_dimx + k * new_dimx * new_dimy];
+                (*vol_new)[i + j * new_dimx + k * new_dimx * new_dimy] =
+                    (*vol_new)[(i - 1) + j * new_dimx + k * new_dimx * new_dimy];
             }
         }
     }
@@ -580,8 +578,8 @@ void pad_replicate_volume(unsigned int* vol, unsigned int** new_vol, unsigned in
     for (int j = static_cast<int>(pad_size) - 1; j >= 0; --j) {
         for (unsigned int i = 0; i < new_dimx; ++i) {
             for (unsigned int k = 0; k < new_dimz; ++k) {
-                (*new_vol)[i + j * new_dimx + k * new_dimx * new_dimy] =
-                    (*new_vol)[i + (j + 1) * new_dimx + k * new_dimx * new_dimy];
+                (*vol_new)[i + j * new_dimx + k * new_dimx * new_dimy] =
+                    (*vol_new)[i + (j + 1) * new_dimx + k * new_dimx * new_dimy];
             }
         }
     }
@@ -590,8 +588,8 @@ void pad_replicate_volume(unsigned int* vol, unsigned int** new_vol, unsigned in
     for (unsigned int j = new_dimy - pad_size; j < new_dimy; ++j) {
         for (unsigned int i = 0; i < new_dimx; ++i) {
             for (unsigned int k = 0; k < new_dimz; ++k) {
-                (*new_vol)[i + j * new_dimx + k * new_dimx * new_dimy] =
-                    (*new_vol)[i + (j - 1) * new_dimx + k * new_dimx * new_dimy];
+                (*vol_new)[i + j * new_dimx + k * new_dimx * new_dimy] =
+                    (*vol_new)[i + (j - 1) * new_dimx + k * new_dimx * new_dimy];
             }
         }
     }
@@ -601,8 +599,8 @@ void pad_replicate_volume(unsigned int* vol, unsigned int** new_vol, unsigned in
     for (int k = static_cast<int>(pad_size) - 1; k >= 0; --k) {
         for (unsigned int i = 0; i < new_dimx; ++i) {
             for (unsigned int j = 0; j < new_dimy; ++j) {
-                (*new_vol)[i + j * new_dimx + k * new_dimx * new_dimy] =
-                    (*new_vol)[i + j * new_dimx + (k + 1) * new_dimx * new_dimy];
+                (*vol_new)[i + j * new_dimx + k * new_dimx * new_dimy] =
+                    (*vol_new)[i + j * new_dimx + (k + 1) * new_dimx * new_dimy];
             }
         }
     }
@@ -611,8 +609,8 @@ void pad_replicate_volume(unsigned int* vol, unsigned int** new_vol, unsigned in
     for (unsigned int k = new_dimz - pad_size; k < new_dimz; ++k) {
         for (unsigned int i = 0; i < new_dimx; ++i) {
             for (unsigned int j = 0; j < new_dimy; ++j) {
-                (*new_vol)[i + j * new_dimx + k * new_dimx * new_dimy] =
-                    (*new_vol)[i + j * new_dimx + (k - 1) * new_dimx * new_dimy];
+                (*vol_new)[i + j * new_dimx + k * new_dimx * new_dimy] =
+                    (*vol_new)[i + j * new_dimx + (k - 1) * new_dimx * new_dimy];
             }
         }
     }
@@ -665,7 +663,7 @@ void gaussian_filter(float** filter, unsigned int sizex, unsigned int sizey,
  */
 __global__ void init_lower_label(unsigned char* vol_new, unsigned int* vol) {
     unsigned int idx1d = flatten_3d_to_1d(blockIdx, gridDim);
-    vol_new[idx1d * sizeof(unsigned int) + 0] = vol[idx1d] & MED_MASK; // bytes[7]
+    vol_new[idx1d * sizeof(unsigned int) + 3] = vol[idx1d] & MED_MASK; // c[7]
 }
 
 /**
@@ -705,7 +703,7 @@ __global__ void gaussian_blur(float* binary_mask, float* mask) {
 }
 
 // Extract isosurface and get the new volume for svmc simulation
-__global__ void split_voxel(float* scalar_field, unsigned char* new_vol, unsigned int label) {
+__global__ void split_voxel(float* scalar_field, unsigned char* vol_new, unsigned int label) {
     // grid idx3d
     uint3 cube_idx3d = blockIdx + make_uint3(1, 1, 1);
 
@@ -778,33 +776,24 @@ __global__ void split_voxel(float* scalar_field, unsigned char* new_vol, unsigne
     unsigned int vol_length = vol_dim.x * vol_dim.y * vol_dim.z;
 
     // check if we are processing for lower label or upper label
-    unsigned int* temp = (unsigned int*)new_vol;
+    unsigned int* temp = (unsigned int*)vol_new;
 
     if (temp[idx1d + vol_length]) { // if we have already init isosurface normal, bytes[3-0] must not be zero
         // update upper volume and return
-        new_vol[idx1d * sizeof(unsigned int) + 1] = label; // bytes[6]
-        // printf("Grid #[%u %u %u], [%u %u %u %u %u %u %u %u]\n", cube_idx3d.x + 1, cube_idx3d.y + 1, cube_idx3d.z + 1,
-        //     new_vol[idx1d * sizeof(unsigned int) + 0],
-        //     new_vol[idx1d * sizeof(unsigned int) + 1],
-        //     new_vol[idx1d * sizeof(unsigned int) + 2],
-        //     new_vol[idx1d * sizeof(unsigned int) + 3],
-        //     new_vol[(idx1d + vol_length) * sizeof(unsigned int) + 0],
-        //     new_vol[(idx1d + vol_length) * sizeof(unsigned int) + 1],
-        //     new_vol[(idx1d + vol_length) * sizeof(unsigned int) + 2],
-        //     new_vol[(idx1d + vol_length) * sizeof(unsigned int) + 3]);
+        vol_new[idx1d * sizeof(unsigned int) + 2] = label; // c[6]
         return;
     }
 
     // update lower label
-    new_vol[idx1d * sizeof(unsigned int) + 0] = label; // bytes[7]
+    vol_new[idx1d * sizeof(unsigned int) + 3] = label; // c[7]
 
     // convert float vectors to gray-scale vectors (0-255) and update the new volume
-    new_vol[idx1d * sizeof(unsigned int) + 2] = (unsigned char)(isosurface_centroid.x * 255.0f); // bytes[5]
-    new_vol[idx1d * sizeof(unsigned int) + 3] = (unsigned char)(isosurface_centroid.y * 255.0f); // bytes[4]
-    new_vol[(idx1d + vol_length) * sizeof(unsigned int) + 0] = (unsigned char)(isosurface_centroid.z * 255.0f); // bytes[3]
-    new_vol[(idx1d + vol_length) * sizeof(unsigned int) + 1] = min((unsigned char)floorf((isosurface_normal.x + 1.0f) * 255.0f * 0.5f), 254); // bytes[2]
-    new_vol[(idx1d + vol_length) * sizeof(unsigned int) + 2] = min((unsigned char)floorf((isosurface_normal.y + 1.0f) * 255.0f * 0.5f), 254); // bytes[1]
-    new_vol[(idx1d + vol_length) * sizeof(unsigned int) + 3] = min((unsigned char)floorf((isosurface_normal.z + 1.0f) * 255.0f * 0.5f), 254); // bytes[0]
+    vol_new[idx1d * sizeof(unsigned int) + 1] = (unsigned char)(isosurface_centroid.x * 255.0f); // c[5]
+    vol_new[idx1d * sizeof(unsigned int) + 0] = (unsigned char)(isosurface_centroid.y * 255.0f); // c[4]
+    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 3] = (unsigned char)(isosurface_centroid.z * 255.0f); // c[3]
+    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 2] = min((unsigned char)floorf((isosurface_normal.x + 1.0f) * 255.0f * 0.5f), 254); // c[2]
+    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 1] = min((unsigned char)floorf((isosurface_normal.y + 1.0f) * 255.0f * 0.5f), 254); // c[1]
+    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 0] = min((unsigned char)floorf((isosurface_normal.z + 1.0f) * 255.0f * 0.5f), 254); // c[0]
 }
 
 /**
