@@ -777,7 +777,7 @@ __global__ void split_voxel(float* scalar_field, unsigned char* vol_new, unsigne
         isosurface_centroid += triangle_area * triangle_centroid;
     }
 
-    isosurface_normal = -isosurface_normal / isosurface_area;
+    isosurface_normal = -isosurface_normal / length(isosurface_normal);
     isosurface_centroid /= isosurface_area;
 
     // update lower label
