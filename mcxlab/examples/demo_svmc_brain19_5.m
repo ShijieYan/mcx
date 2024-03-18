@@ -21,7 +21,7 @@
 % This file is part of Monte Carlo eXtreme (MCX) URL:http://mcx.sf.net
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-clear cfg cfg_svmc;
+clear cfg cfg_mcx cfg_svmc;
 
 %% common MC setup
 cfg.nphoton = 1e8;
@@ -66,15 +66,10 @@ cfg_mcx = cfg;
 cfg_mcx.vol = USC_atlas;
 
 %% prepare svmc input volume
-addpath('../../utils');
-tic;
-[svmcvol] = mcxsvmc(USC_atlas, 'smoothing', 1);
-fprintf('SVMC preprocessing complete, ');
-toc;
-
 cfg_svmc = cfg;
+cfg_svmc.vol = uint8(USC_atlas);
 cfg_svmc.srcpos = cfg_svmc.srcpos + 0.5;
-cfg_svmc.vol = uint8(svmcvol);
+cfg_svmc.issvmc = 1;
 
 %% run simulations
 addpath ../;

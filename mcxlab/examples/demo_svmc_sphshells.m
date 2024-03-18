@@ -15,7 +15,7 @@
 % This file is part of Monte Carlo eXtreme (MCX) URL:http://mcx.sf.net
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-clear cfg cfg_svmc;
+clear cfg cfg_mcx cfg_svmc;
 
 %% common MC setup
 cfg.nphoton = 1e8;
@@ -64,21 +64,16 @@ cfg_mcx = cfg;
 cfg_mcx.vol = uint8(mcxvol);
 
 %% prepare svmc input volume
-tic;
 [xi, yi, zi] = ndgrid(1:dim, 1:dim, 1:dim);
 dist = (xi - 30.5).^2 + (yi - 30.5).^2 + (zi - 30.5).^2;
-vol2 = ones(size(xi));
-vol2(dist < 625) = 2;
-vol2(dist < 529) = 3;
-vol2(dist < 100) = 4;
-
-addpath('../../utils');
-svmcvol = mcxsvmc(vol2, 'smoothing', 1); % 1: enable gaussian smoothing 0: otherwise
-fprintf('SVMC preprocessing complete, ');
-toc;
+svmcvol = ones(size(xi));
+svmcvol(dist < 625) = 2;
+svmcvol(dist < 529) = 3;
+svmcvol(dist < 100) = 4;
 
 cfg_svmc = cfg;
 cfg_svmc.vol = uint8(svmcvol);
+cfg_svmc.issvmc = 1;
 
 %% run simulations
 addpath ../;
