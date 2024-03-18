@@ -67,18 +67,18 @@ __device__ unsigned int flatten_3d_to_1d(uint3 idx3d, uint3 dim);
 #define MCX_SVMC_ISOVALUE     0.5f
 
 /**
+ * gaussian filter for smoothing binary volume
+ */
+__constant__ float gfilter[MCX_SVMC_GKERNEL_SIZE * MCX_SVMC_GKERNEL_SIZE * MCX_SVMC_GKERNEL_SIZE];
+
+/**
  * Indices of the vertices in the local coordinate system
+ * adapted from https://paulbourke.net/geometry/polygonise/
  */
 __constant__ uint3 cube_vertices_local[8] = {
     {0, 0, 0}, {1, 0, 0}, {1, 0, 1}, {0, 0, 1},
     {0, 1, 0}, {1, 1, 0}, {1, 1, 1}, {0, 1, 1}
 };
-
-/**
- * gaussian filter for smoothing binary volume
- */
-__constant__ float gfilter[MCX_SVMC_GKERNEL_SIZE * MCX_SVMC_GKERNEL_SIZE * MCX_SVMC_GKERNEL_SIZE];
-
 
 /**
  * edge[i] joins edge_vertices[i][0] and edge_vertices[i][1]
@@ -489,11 +489,6 @@ void mcx_svmc_preprocess(Config* cfg, GPUInfo* gpu) {
     // enable svmc mode
     cfg->mediabyte = MEDIA_2LABEL_SPLIT;
 
-    // adjust source position to compensate for the grid offset between mcx and svmc
-    cfg->srcpos += make_float4(0.5f, 0.5f, 0.5f, 0.0f);
-
-    // TODO: adjust detector position to compensate for the grid offset between mcx and svmc
-
     // add detector mask
     mcx_maskdet(cfg);
 
@@ -710,6 +705,10 @@ __global__ void split_voxel(float* scalar_field, unsigned char* vol_new, unsigne
     // vol dimension
     uint3 vol_dim = gridDim + make_uint3(1, 1, 1);
 
+    // 1D index of the current grid
+    unsigned int idx1d = flatten_3d_to_1d(cube_idx3d, vol_dim);
+    unsigned int vol_length = vol_dim.x * vol_dim.y * vol_dim.z;
+
     // get index of the polygon configurations (0 - 255)
     float cube_values[8];
     unsigned char cube_index = 0;
@@ -723,7 +722,16 @@ __global__ void split_voxel(float* scalar_field, unsigned char* vol_new, unsigne
     }
 
     // if the voxel does not need to be split, terminate
-    if (cube_index == 0 || cube_index == 0xFF) {
+    if (edge_intersections[cube_index] == 0) {
+        return;
+    }
+
+    // check if we are processing for lower label or upper label
+    unsigned int* temp = (unsigned int*)vol_new;
+
+    if (temp[idx1d + vol_length]) { // if we have already init isosurface normal, bytes[3-0] must not be zero
+        // update upper volume and return
+        vol_new[idx1d * sizeof(unsigned int) + 2] = label; // c[6]
         return;
     }
 
@@ -755,6 +763,7 @@ __global__ void split_voxel(float* scalar_field, unsigned char* vol_new, unsigne
         float3& A = isosurface_vertices[triangle_vertices[cube_index][i]];
         float3& B = isosurface_vertices[triangle_vertices[cube_index][i + 1]];
         float3& C = isosurface_vertices[triangle_vertices[cube_index][i + 2]];
+
         float3 AB_x_AC = cross(B - A, C - A);
         float triangle_area = 0.5f * length(AB_x_AC);
         float3 triangle_normal = 0.5f * AB_x_AC / triangle_area; // AB_x_AC / length(AB_x_AC)
@@ -771,29 +780,16 @@ __global__ void split_voxel(float* scalar_field, unsigned char* vol_new, unsigne
     isosurface_normal = -isosurface_normal / isosurface_area;
     isosurface_centroid /= isosurface_area;
 
-    // 1D index of the current grid
-    unsigned int idx1d = flatten_3d_to_1d(cube_idx3d, vol_dim);
-    unsigned int vol_length = vol_dim.x * vol_dim.y * vol_dim.z;
-
-    // check if we are processing for lower label or upper label
-    unsigned int* temp = (unsigned int*)vol_new;
-
-    if (temp[idx1d + vol_length]) { // if we have already init isosurface normal, bytes[3-0] must not be zero
-        // update upper volume and return
-        vol_new[idx1d * sizeof(unsigned int) + 2] = label; // c[6]
-        return;
-    }
-
     // update lower label
     vol_new[idx1d * sizeof(unsigned int) + 3] = label; // c[7]
 
     // convert float vectors to gray-scale vectors (0-255) and update the new volume
-    vol_new[idx1d * sizeof(unsigned int) + 1] = (unsigned char)(isosurface_centroid.x * 255.0f); // c[5]
-    vol_new[idx1d * sizeof(unsigned int) + 0] = (unsigned char)(isosurface_centroid.y * 255.0f); // c[4]
-    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 3] = (unsigned char)(isosurface_centroid.z * 255.0f); // c[3]
-    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 2] = min((unsigned char)floorf((isosurface_normal.x + 1.0f) * 255.0f * 0.5f), 254); // c[2]
-    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 1] = min((unsigned char)floorf((isosurface_normal.y + 1.0f) * 255.0f * 0.5f), 254); // c[1]
-    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 0] = min((unsigned char)floorf((isosurface_normal.z + 1.0f) * 255.0f * 0.5f), 254); // c[0]
+    vol_new[idx1d * sizeof(unsigned int) + 1] = (unsigned char)(floorf(isosurface_centroid.x * 255.0f)); // c[5]
+    vol_new[idx1d * sizeof(unsigned int) + 0] = (unsigned char)(floorf(isosurface_centroid.y * 255.0f)); // c[4]
+    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 3] = (unsigned char)(floorf(isosurface_centroid.z * 255.0f)); // c[3]
+    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 2] = (unsigned char)min(floorf((isosurface_normal.x + 1.0f) * 255.0f * 0.5f), 254.0f); // c[2]
+    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 1] = (unsigned char)min(floorf((isosurface_normal.y + 1.0f) * 255.0f * 0.5f), 254.0f); // c[1]
+    vol_new[(idx1d + vol_length) * sizeof(unsigned int) + 0] = (unsigned char)min(floorf((isosurface_normal.z + 1.0f) * 255.0f * 0.5f), 254.0f); // c[0]
 }
 
 /**
