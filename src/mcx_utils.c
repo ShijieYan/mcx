@@ -108,7 +108,7 @@
 const char shortopt[] = {'h', 'i', 'f', 'n', 't', 'T', 's', 'a', 'g', 'b', '-', 'z', 'u', 'H', 'P',
                          'd', 'r', 'S', 'p', 'e', 'U', 'R', 'l', 'L', '-', 'I', '-', 'G', 'M', 'A', 'E', 'v', 'D',
                          'k', 'q', 'Y', 'O', 'F', '-', '-', 'x', 'X', '-', 'K', 'm', 'V', 'B', 'W', 'w', '-',
-                         '-', '-', 'Z', 'j', '-', '-', '\0'
+                         '-', '-', 'Z', 'j', '-', '-', '-', '\0'
                         };
 
 /**
@@ -128,7 +128,7 @@ const char* fullopt[] = {"--help", "--interactive", "--input", "--photon",
                          "--maxvoidstep", "--saveexit", "--saveref", "--gscatter", "--mediabyte",
                          "--momentum", "--specular", "--bc", "--workload", "--savedetflag",
                          "--internalsrc", "--bench", "--dumpjson", "--zip", "--json", "--atomic",
-                         "--srcid", ""
+                         "--srcid", "--trajstokes", ""
                         };
 
 /**
@@ -315,6 +315,7 @@ void mcx_initcfg(Config* cfg) {
     cfg->debuglevel = 0;
     cfg->issaveseed = 0;
     cfg->issaveexit = 0;
+    cfg->istrajstokes = 0;
     cfg->ismomentum = 0;
     cfg->internalsrc = 0;
     cfg->replay.seed = NULL;
@@ -619,13 +620,13 @@ void mcx_savebnii(float* vol, int ndim, uint* dims, float* voxelsize, char* name
     ubjw_begin_object(root, UBJ_MIXED, 0);
     ubjw_write_key(root, "Python");
     ubjw_begin_array(root, UBJ_STRING, 2);
-    ubjw_write_string(root, "https://pypi.org/project/jdata");
-    ubjw_write_string(root, "https://pypi.org/project/bjdata");
+    ubjw_write_string(root, "https://neurojson.org/download/pyjdata");
+    ubjw_write_string(root, "https://neurojson.org/download/pybjdata");
     ubjw_end(root);
     ubjw_write_key(root, "MATLAB");
     ubjw_begin_array(root, UBJ_STRING, 2);
-    ubjw_write_string(root, "https://github.com/NeuroJSON/jnifty");
-    ubjw_write_string(root, "https://github.com/NeuroJSON/jsonlab");
+    ubjw_write_string(root, "https://neurojson.org/download/jnifty");
+    ubjw_write_string(root, "https://neurojson.org/download/jsonlab");
     ubjw_end(root);
     ubjw_write_key(root, "JavaScript");
     ubjw_begin_array(root, UBJ_STRING, 2);
@@ -758,8 +759,8 @@ void mcx_savejnii(float* vol, int ndim, uint* dims, float* voxelsize, char* name
     FILE* fp;
     char fname[MAX_FULL_PATH] = {'\0'};
     int affine[] = {0, 0, 1, 0, 0, 0};
-    const char* libpy[] = {"https://pypi.org/project/jdata", "https://pypi.org/project/bjdata"};
-    const char* libmat[] = {"https://github.com/NeuroJSON/jnifty", "https://github.com/NeuroJSON/jsonlab"};
+    const char* libpy[] = {"https://neurojson.org/download/pyjdata", "https://neurojson.org/download/pybjdata"};
+    const char* libmat[] = {"https://neurojson.org/download/jnifty", "https://neurojson.org/download/jsonlab"};
     const char* libjs[] = {"https://www.npmjs.com/package/jda", "https://www.npmjs.com/package/bjd"};
     const char* libc[]  = {"https://github.com/DaveGamble/cJSON", "https://github.com/NeuroJSON/ubj"};
 
@@ -1029,9 +1030,9 @@ void mcx_savejdet(float* ppath, void* seeds, uint count, int doappend, Config* c
     }
 
     if (cfg->his.detected == 0  && cfg->his.savedphoton) {
-        char colnum[] = {1, 3, 1, 1};
-        char* dtype[] = {"uint32", "single", "single", "uint32"};
-        char* dname[] = {"photonid", "p", "w0", "srcid"};
+        char colnum[] = {1, 3, 1, 1, 4};
+        char* dtype[] = {"uint32", "single", "single", "uint32", "single"};
+        char* dname[] = {"photonid", "p", "w0", "srcid", "iquv"};
         int activecol = sizeof(colnum) - (cfg->his.totalsource == 1);
         cJSON_AddItemToObject(obj, "Trajectory", dat = cJSON_CreateObject());
 
@@ -1491,6 +1492,11 @@ void mcx_preprocess(Config* cfg) {
     if (cfg->debuglevel & MCX_DEBUG_MOVE_ONLY) {
         cfg->issave2pt = 0;
         cfg->issavedet = 0;
+    }
+
+    // if neither trajectory or polarization is enabled, disable istrajstokes flag
+    if (!(cfg->debuglevel & (MCX_DEBUG_MOVE | MCX_DEBUG_MOVE_ONLY)) || !((cfg->mediabyte <= 4) && (cfg->polmedianum > 0))) {
+        cfg->istrajstokes = 0;
     }
 
     for (int i = 0; i < 6; i++)
@@ -4477,7 +4483,12 @@ int  mcx_jdataencode(void* vol, int ndim, uint* dims, char* type, int byte, int 
     }
 
     /*compress data using zlib*/
-    ret = zmat_encode(totalbytes, (uchar*)vol, &compressedbytes, (uchar**)&compressed, zipid, &status);
+    if (zipid != zmBase64) {
+        ret = zmat_encode(totalbytes, (uchar*)vol, &compressedbytes, (uchar**)&compressed, zipid, &status);
+    } else {
+        compressed = (uchar*)vol;
+        compressedbytes = totalbytes;
+    }
 
     if (!ret) {
         if (!cfg->isdumpjson) {
@@ -4522,7 +4533,7 @@ int  mcx_jdataencode(void* vol, int ndim, uint* dims, char* type, int byte, int 
         }
     }
 
-    if (compressed) {
+    if (compressed && zipid != zmBase64) {
         free(compressed);
     }
 
@@ -5083,6 +5094,8 @@ void mcx_parsecmd(int argc, char* argv[], Config* cfg) {
                         cfg->sradius = (isatomic) ? -2.f : 0.f;
                     } else if (strcmp(argv[i] + 2, "srcid") == 0) {
                         i = mcx_readarg(argc, argv, i, &(cfg->srcid), "int");
+                    } else if (strcmp(argv[i] + 2, "trajstokes") == 0) {
+                        i = mcx_readarg(argc, argv, i, &(cfg->istrajstokes), "int");
                     } else if (strcmp(argv[i] + 2, "internalsrc") == 0) {
                         i = mcx_readarg(argc, argv, i, &(cfg->internalsrc), "int");
                     } else {
@@ -5287,10 +5300,10 @@ int mcx_float2half2(float input[2]) {
     f2h.f[1] = input[1];
 
     /**
-    float to half conversion
-    https://stackoverflow.com/questions/3026441/float32-to-float16/5587983#5587983
-    https://gamedev.stackexchange.com/a/17410  (for denorms)
-    */
+     * float to half conversion
+     * https://stackoverflow.com/questions/3026441/float32-to-float16/5587983#5587983
+     * https://gamedev.stackexchange.com/a/17410  (for denorms)
+     */
     m = ((f2h.i[0] >> 13) & 0x03ff);
     tmp = (f2h.i[0] >> 23) & 0xff; /*exponent*/
     tmp = (tmp - 0x70) & ((unsigned int)((int)(0x70 - tmp) >> 4) >> 27);
@@ -5551,10 +5564,10 @@ where possible parameters include (the first value in [*|*] is the default)\n\
                                tx3 - GL texture data for rendering (GL_RGBA32F)\n\
     the bnii/jnii formats support compression (-Z) and generate small files\n\
     load jnii (JSON) and bnii (UBJSON) files using below lightweight libs:\n\
-      MATLAB/Octave: JNIfTI toolbox   https://github.com/NeuroJSON/jnifti,\n\
-      MATLAB/Octave: JSONLab toolbox  https://github.com/NeuroJSON/jsonlab,\n\
-      Python:        PyJData:         https://pypi.org/project/jdata\n\
-      JavaScript:    JSData:          https://github.com/NeuroJSON/jsdata\n\
+      MATLAB/Octave: JNIfTI toolbox   https://neurojson.org/download/jnifty\n\
+      MATLAB/Octave: JSONLab toolbox  https://neurojson.org/download/jsonlab\n\
+      Python:        PyJData:         https://neurojson.org/download/pyjdata\n\
+      JavaScript:    JSData:          https://neurojson.org/download/jsdata\n\
  -Z [zlib|...] (--zip)         set compression method if -F jnii or --dumpjson\n\
                                is used (when saving data to JSON/JNIfTI format)\n\
                                0 zlib: zip format (moderate compression,fast) \n\
@@ -5596,6 +5609,7 @@ where possible parameters include (the first value in [*|*] is the default)\n\
  --srcid  [0|-1,0,1,2,..]      -1 simulate multi-source separately;0 all sources\n\
                                together; a positive integer runs a single source\n\
  --internalsrc  [0|1]          set to 1 to skip entry search to speedup launch\n\
+ --trajstokes   [0|1]          set to 1 to save Stokes IQUV in trajectory data\n\
  --maxvoidstep  [1000|int]     maximum distance (in voxel unit) of a photon that\n\
                                can travel before entering the domain, if \n\
                                launched outside (i.e. a widefield source)\n\
